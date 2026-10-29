@@ -15,6 +15,7 @@ enum DuoTheme {
 }
 struct DuoPanel: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) var reduceTransparency
+    @ViewBuilder
     func body(content: Content) -> some View {
         if reduceTransparency { content.padding().background(Color("Surface"), in: RoundedRectangle(cornerRadius: 24)) }
         else { content.padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24)) }
