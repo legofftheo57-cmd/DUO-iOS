@@ -31,6 +31,27 @@ final class AssistantTests: XCTestCase {
         } else { XCTFail("Expected confirmation proposal") }
         if case .event(let unchanged) = row.payload { XCTAssertEqual(unchanged.start, start) } else { XCTFail() }
     }
+    func testRescheduleNameEndingInADoesNotConfuseAnotherItem() {
+        let home = UUID()
+        let yoga = Record(householdID: home, payload: .task(HouseTask(title: "Yoga")))
+        let yogurt = Record(householdID: home, payload: .task(HouseTask(title: "Yogourt")))
+        for question in ["Décale yoga demain", "Décale yoga à demain"] {
+            let reply = DuoAssistant.answer(question, records: [yoga, yogurt],
+                                            recipes: [], stock: [], exclusions: [], now: now)
+            guard case .moveTask(let id, _) = reply.action else {
+                XCTFail("Expected the unique Yoga proposal for: \\(question)")
+                continue
+            }
+            XCTAssertEqual(id, yoga.id)
+        }
+    }
+    func testNoAccidentalRescheduleForSimilarName() {
+        let home = UUID()
+        let yogurt = Record(householdID: home, payload: .task(HouseTask(title: "Yogourt")))
+        let reply = DuoAssistant.answer("Décale yoga demain", records: [yogurt],
+                                        recipes: [], stock: [], exclusions: [], now: now)
+        XCTAssertNil(reply.action)
+    }
     func testDeletedItemNotProposed() {
         var row = Record(householdID: UUID(), payload: .task(HouseTask(title: "Sport")))
         row.deleted = true
