@@ -39,7 +39,7 @@ final class AssistantTests: XCTestCase {
             let reply = DuoAssistant.answer(question, records: [yoga, yogurt],
                                             recipes: [], stock: [], exclusions: [], now: now)
             guard case .moveTask(let id, _) = reply.action else {
-                XCTFail("Expected the unique Yoga proposal for: \\(question)")
+                XCTFail("Expected the unique Yoga proposal for: " + question)
                 continue
             }
             XCTAssertEqual(id, yoga.id)
