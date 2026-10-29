@@ -1,0 +1,7 @@
+// No backend is configured by default. The entire local experience needs no account.
+DUO_BUNDLE_ID = fr.theolegoff.duo.dev
+DUO_DEVELOPMENT_TEAM =
+SUPABASE_URL =
+SUPABASE_PUBLISHABLE_KEY =
+// Optional untracked machine-specific overrides. Never add a service-role key.
+#include? "Local.xcconfig"

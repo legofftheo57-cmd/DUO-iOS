@@ -1,0 +1,499 @@
+[
+  [
+    "pasta",
+    "Pâtes tomate & pois chiches",
+    10,
+    15,
+    "légumineuses",
+    [
+      [
+        "pâtes",
+        180,
+        "g"
+      ],
+      [
+        "tomates concassées",
+        400,
+        "g"
+      ],
+      [
+        "pois chiches cuits",
+        240,
+        "g"
+      ],
+      [
+        "oignon",
+        1,
+        "piece"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [
+      "gluten"
+    ],
+    [
+      "Éplucher et émincer l’oignon. Égoutter et rincer les pois chiches.",
+      "Chauffer l’huile à feu moyen. Faire revenir l’oignon 5 minutes, ajouter les tomates et mijoter 10 minutes.",
+      "Cuire les pâtes selon leur emballage. Ajouter les pois chiches à la sauce et réchauffer 5 minutes.",
+      "Égoutter les pâtes et mélanger à la sauce. Goûter avant de saler."
+    ]
+  ],
+  [
+    "omelette",
+    "Omelette courgette & feta",
+    10,
+    12,
+    "œufs",
+    [
+      [
+        "œufs",
+        4,
+        "piece"
+      ],
+      [
+        "courgette",
+        300,
+        "g"
+      ],
+      [
+        "feta",
+        60,
+        "g"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [
+      "œufs",
+      "lait"
+    ],
+    [
+      "Laver et couper la courgette en petits dés.",
+      "Chauffer l’huile et cuire les dés 7 minutes à feu moyen.",
+      "Battre les œufs, verser dans la poêle puis répartir la feta émiettée.",
+      "Cuire à feu doux environ 5 minutes, jusqu’à ce que les œufs soient pris."
+    ]
+  ],
+  [
+    "lentils",
+    "Dahl de lentilles corail",
+    10,
+    25,
+    "légumineuses",
+    [
+      [
+        "lentilles corail",
+        160,
+        "g"
+      ],
+      [
+        "carotte",
+        200,
+        "g"
+      ],
+      [
+        "lait de coco",
+        200,
+        "ml"
+      ],
+      [
+        "tomates concassées",
+        200,
+        "g"
+      ],
+      [
+        "curry",
+        4,
+        "g"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [],
+    [
+      "Rincer les lentilles. Peler et couper les carottes en petits dés.",
+      "Chauffer l’huile, ajouter les carottes et le curry, remuer 2 minutes.",
+      "Ajouter les lentilles, les tomates, le lait de coco et 250 ml d’eau.",
+      "Mijoter 20 à 25 minutes, remuer et ajouter de l’eau si nécessaire. Les lentilles et carottes doivent être tendres."
+    ]
+  ],
+  [
+    "chicken",
+    "Poulet citron & riz",
+    10,
+    25,
+    "volaille",
+    [
+      [
+        "poulet",
+        300,
+        "g"
+      ],
+      [
+        "riz",
+        150,
+        "g"
+      ],
+      [
+        "carotte",
+        250,
+        "g"
+      ],
+      [
+        "citron",
+        1,
+        "piece"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [],
+    [
+      "Utiliser une planche séparée pour le poulet cru. Couper le poulet et les carottes en petits morceaux.",
+      "Cuire le riz selon l’emballage. Chauffer l’huile et dorer le poulet 5 minutes.",
+      "Ajouter les carottes et 100 ml d’eau, couvrir et cuire environ 15 minutes.",
+      "Vérifier la cuisson à cœur du poulet avec un thermomètre (74 °C). Ajouter le jus de citron et servir avec le riz."
+    ]
+  ],
+  [
+    "potatoes",
+    "Pommes de terre, brocoli & œufs",
+    10,
+    25,
+    "œufs",
+    [
+      [
+        "pomme de terre",
+        500,
+        "g"
+      ],
+      [
+        "brocoli",
+        300,
+        "g"
+      ],
+      [
+        "œufs",
+        4,
+        "piece"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [
+      "œufs"
+    ],
+    [
+      "Laver et couper les pommes de terre en dés. Détailler le brocoli.",
+      "Cuire les pommes de terre 15 à 20 minutes à l’eau. Ajouter le brocoli pour les 6 dernières minutes.",
+      "Cuire les œufs 10 minutes dans l’eau bouillante puis les refroidir et les écaler.",
+      "Égoutter les légumes, ajouter l’huile et servir avec les œufs coupés."
+    ]
+  ],
+  [
+    "tuna",
+    "Salade de haricots blancs au thon",
+    15,
+    0,
+    "poisson",
+    [
+      [
+        "haricots blancs cuits",
+        300,
+        "g"
+      ],
+      [
+        "thon égoutté",
+        140,
+        "g"
+      ],
+      [
+        "tomate",
+        250,
+        "g"
+      ],
+      [
+        "citron",
+        1,
+        "piece"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [
+      "poisson"
+    ],
+    [
+      "Égoutter et rincer les haricots blancs. Égoutter le thon.",
+      "Laver et découper les tomates. Mélanger avec les haricots et le thon.",
+      "Ajouter le jus du citron et l’huile. Servir frais."
+    ]
+  ],
+  [
+    "soup",
+    "Velouté carotte & lentilles",
+    10,
+    25,
+    "soupe",
+    [
+      [
+        "carotte",
+        400,
+        "g"
+      ],
+      [
+        "lentilles corail",
+        120,
+        "g"
+      ],
+      [
+        "oignon",
+        1,
+        "piece"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [],
+    [
+      "Éplucher et émincer les légumes, rincer les lentilles.",
+      "Faire revenir l’oignon dans l’huile 3 minutes. Ajouter les carottes, lentilles et 700 ml d’eau.",
+      "Mijoter environ 25 minutes jusqu’à ce que tout soit tendre.",
+      "Mixer prudemment hors du feu, ajouter de l’eau selon la texture souhaitée."
+    ]
+  ],
+  [
+    "gratin",
+    "Gratin de pommes de terre & épinards",
+    15,
+    45,
+    "four",
+    [
+      [
+        "pomme de terre",
+        500,
+        "g"
+      ],
+      [
+        "épinards",
+        300,
+        "g"
+      ],
+      [
+        "crème",
+        150,
+        "ml"
+      ],
+      [
+        "fromage râpé",
+        60,
+        "g"
+      ]
+    ],
+    [
+      "lait"
+    ],
+    [
+      "Préchauffer le four à 190 °C. Éplucher et couper les pommes de terre en rondelles fines.",
+      "Précuire les rondelles 10 minutes à l’eau frémissante. Égoutter.",
+      "Faire tomber les épinards 3 minutes dans une casserole puis égoutter soigneusement.",
+      "Alterner pommes de terre et épinards dans un plat. Répartir la crème et le fromage.",
+      "Enfourner 30 à 35 minutes. Vérifier que les pommes de terre sont tendres à la pointe d’un couteau."
+    ]
+  ],
+  [
+    "couscous",
+    "Semoule aux légumes & pois chiches",
+    10,
+    20,
+    "légumineuses",
+    [
+      [
+        "semoule",
+        160,
+        "g"
+      ],
+      [
+        "courgette",
+        300,
+        "g"
+      ],
+      [
+        "carotte",
+        200,
+        "g"
+      ],
+      [
+        "pois chiches cuits",
+        240,
+        "g"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [
+      "gluten"
+    ],
+    [
+      "Laver et couper les légumes en petits dés. Rincer les pois chiches.",
+      "Chauffer l’huile. Cuire les carottes avec 100 ml d’eau à couvert 10 minutes.",
+      "Ajouter courgette et pois chiches, cuire encore 10 minutes.",
+      "Préparer la semoule selon l’emballage, égrainer à la fourchette et servir avec les légumes."
+    ]
+  ],
+  [
+    "salmon",
+    "Saumon & brocoli au four",
+    10,
+    20,
+    "poisson",
+    [
+      [
+        "saumon",
+        300,
+        "g"
+      ],
+      [
+        "brocoli",
+        400,
+        "g"
+      ],
+      [
+        "riz",
+        150,
+        "g"
+      ],
+      [
+        "citron",
+        1,
+        "piece"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [
+      "poisson"
+    ],
+    [
+      "Préchauffer le four à 200 °C. Détailler le brocoli en petits bouquets.",
+      "Déposer le brocoli et le saumon dans un plat. Ajouter huile et jus de citron.",
+      "Enfourner 15 à 20 minutes selon l’épaisseur ; vérifier 63 °C à cœur du poisson.",
+      "Cuire le riz selon l’emballage et servir avec le poisson et les légumes."
+    ]
+  ],
+  [
+    "rice",
+    "Riz sauté aux petits pois",
+    10,
+    20,
+    "œufs",
+    [
+      [
+        "riz",
+        160,
+        "g"
+      ],
+      [
+        "petits pois",
+        250,
+        "g"
+      ],
+      [
+        "œufs",
+        3,
+        "piece"
+      ],
+      [
+        "oignon",
+        1,
+        "piece"
+      ],
+      [
+        "huile d’olive",
+        10,
+        "ml"
+      ]
+    ],
+    [
+      "œufs"
+    ],
+    [
+      "Cuire le riz selon l’emballage et cuire les petits pois selon leurs indications.",
+      "Émincer l’oignon, le faire revenir 5 minutes dans l’huile.",
+      "Ajouter les œufs battus et remuer jusqu’à ce qu’ils soient pris.",
+      "Ajouter immédiatement riz et petits pois chauds et mélanger 2 minutes. Servir sans attendre."
+    ]
+  ],
+  [
+    "tofu",
+    "Tofu croustillant & courgettes",
+    10,
+    20,
+    "végétal",
+    [
+      [
+        "tofu",
+        300,
+        "g"
+      ],
+      [
+        "courgette",
+        400,
+        "g"
+      ],
+      [
+        "riz",
+        150,
+        "g"
+      ],
+      [
+        "sauce soja",
+        20,
+        "ml"
+      ],
+      [
+        "huile d’olive",
+        15,
+        "ml"
+      ]
+    ],
+    [
+      "soja",
+      "gluten"
+    ],
+    [
+      "Cuire le riz selon l’emballage. Éponger le tofu et le couper en cubes.",
+      "Laver et découper les courgettes. Dorer le tofu dans l’huile 8 minutes en le retournant.",
+      "Ajouter les courgettes et cuire encore 8 à 10 minutes.",
+      "Verser la sauce soja, mélanger et servir avec le riz."
+    ]
+  ]
+]

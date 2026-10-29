@@ -1,0 +1,13 @@
+{
+  "environment": "Linux, Swift CLI; no Apple SDK",
+  "swiftXCTest": 52,
+  "swiftXCTestFailures": 0,
+  "iosSwiftParseErrors": 0,
+  "resourceJSONCount": 12,
+  "privacyPlist": "parsed",
+  "workflowYAML": "parsed",
+  "postgresMigration002": "NOT EXECUTED",
+  "supabaseEdge": "NOT DEPLOYED",
+  "iosBuild": "NOT EXECUTED",
+  "iPhoneUI": "NOT EXECUTED"
+}

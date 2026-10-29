@@ -1,0 +1,31 @@
+PASS Migration installs on PostgreSQL
+PASS Create authenticated household
+PASS Cannot create second household
+PASS Invitation creation
+PASS Partner can redeem invitation
+PASS Consumed invitation cannot be replayed
+PASS Household refuses third member invitation
+PASS Shared record starts at revision 1
+PASS Owner can create private habit
+PASS Partner sees shared data through RLS
+PASS Private habit is absent from sync RPC
+PASS Cannot guess and overwrite private record
+PASS Partner can edit shared record
+PASS Stale simultaneous edit is rejected
+PASS Missing revision cannot bypass CAS
+PASS Negative food quantity rejected server-side
+PASS Fractional pieces rejected server-side
+PASS Direct writes denied even to member
+PASS Batch rolls back all rows on conflict
+PASS Other household cannot read records via RLS
+PASS Other household cannot read via sync RPC
+PASS Cannot forge household ID
+PASS Cannot take over global record ID
+PASS Cannot forge membership
+PASS Deletion creates a revisioned tombstone
+PASS Partner receives deletion tombstone
+PASS Deleted record cannot be silently resurrected
+PASS Anonymous records access denied
+PASS Anonymous RPC access denied
+PASS Anonymous household creation denied
+PASS Missing JWT identity cannot create household

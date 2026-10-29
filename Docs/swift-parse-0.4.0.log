@@ -1,0 +1,1 @@
+swiftc -frontend -parse App/*.swift UITests/*.swift : OK sur Linux. Syntaxe seulement, pas de compilation avec le SDK iOS.

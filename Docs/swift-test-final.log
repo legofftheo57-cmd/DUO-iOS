@@ -1,0 +1,136 @@
+[0/1] Planning build
+Building for debugging...
+[0/4] Write swift-version--12B57FBB37FC1DE2.txt
+[1/4] Write sources
+[4/5] Emitting module DUOCore
+[5/6] Compiling DUOCore Engine.swift
+[7/9] Emitting module DUOCoreTests
+[8/10] Compiling DUOCoreTests StateTests.swift
+[9/11] Wrapping AST for DUOCore for debugging
+[10/17] Wrapping AST for DUOCoreTests for debugging
+[11/17] /tmp/duo-build/x86_64-unknown-linux-gnu/debug/DUOCorePackageDiscoveredTests.derived/all-discovered-tests.swift
+[12/18] Write sources
+[14/19] Emitting module DUOCorePackageDiscoveredTests
+[15/21] Compiling DUOCorePackageDiscoveredTests DUOCoreTests.swift
+[16/21] Compiling DUOCorePackageDiscoveredTests all-discovered-tests.swift
+[17/22] /tmp/duo-build/x86_64-unknown-linux-gnu/debug/DUOCorePackageTests.derived/runner.swift
+[18/23] Wrapping AST for DUOCorePackageDiscoveredTests for debugging
+[19/23] Write sources
+[21/24] Emitting module DUOCorePackageTests
+[22/25] Compiling DUOCorePackageTests runner.swift
+[23/25] Write Objects.LinkFileList
+[24/25] Linking DUOCorePackageTests.xctest
+Build complete! (3.34s)
+Test Suite 'All tests' started at 2026-10-29 10:23:25.463
+Test Suite 'debug.xctest' started at 2026-10-29 10:23:25.464
+Test Suite 'EngineTests' started at 2026-10-29 10:23:25.464
+Test Case 'EngineTests.testAllergenExclusions' started at 2026-10-29 10:23:25.464
+Test Case 'EngineTests.testAllergenExclusions' passed (0.005 seconds)
+Test Case 'EngineTests.testConsumeEarliestExpiryFirst' started at 2026-10-29 10:23:25.470
+Test Case 'EngineTests.testConsumeEarliestExpiryFirst' passed (0.001 seconds)
+Test Case 'EngineTests.testConsumeIsAtomicOnInsufficientStock' started at 2026-10-29 10:23:25.471
+Test Case 'EngineTests.testConsumeIsAtomicOnInsufficientStock' passed (0.0 seconds)
+Test Case 'EngineTests.testCookedMealsExcluded' started at 2026-10-29 10:23:25.471
+Test Case 'EngineTests.testCookedMealsExcluded' passed (0.0 seconds)
+Test Case 'EngineTests.testDatedMealsCannotReuseSameStock' started at 2026-10-29 10:23:25.471
+Test Case 'EngineTests.testDatedMealsCannotReuseSameStock' passed (0.001 seconds)
+Test Case 'EngineTests.testEmptyNameRejected' started at 2026-10-29 10:23:25.472
+Test Case 'EngineTests.testEmptyNameRejected' passed (0.0 seconds)
+Test Case 'EngineTests.testExpiredFoodExcluded' started at 2026-10-29 10:23:25.472
+Test Case 'EngineTests.testExpiredFoodExcluded' passed (0.0 seconds)
+Test Case 'EngineTests.testExpiryRespectedAtFutureMealDate' started at 2026-10-29 10:23:25.472
+Test Case 'EngineTests.testExpiryRespectedAtFutureMealDate' passed (0.001 seconds)
+Test Case 'EngineTests.testFractionalPiecesRejected' started at 2026-10-29 10:23:25.473
+Test Case 'EngineTests.testFractionalPiecesRejected' passed (0.0 seconds)
+Test Case 'EngineTests.testFuturePricesUnknown' started at 2026-10-29 10:23:25.473
+Test Case 'EngineTests.testFuturePricesUnknown' passed (0.0 seconds)
+Test Case 'EngineTests.testIncompatibleStockDoesNotSatisfy' started at 2026-10-29 10:23:25.473
+Test Case 'EngineTests.testIncompatibleStockDoesNotSatisfy' passed (0.0 seconds)
+Test Case 'EngineTests.testIngredientExclusions' started at 2026-10-29 10:23:25.473
+Test Case 'EngineTests.testIngredientExclusions' passed (0.004 seconds)
+Test Case 'EngineTests.testInvalidPortionsFail' started at 2026-10-29 10:23:25.478
+Test Case 'EngineTests.testInvalidPortionsFail' passed (0.0 seconds)
+Test Case 'EngineTests.testKilogramsToGrams' started at 2026-10-29 10:23:25.478
+Test Case 'EngineTests.testKilogramsToGrams' passed (0.0 seconds)
+Test Case 'EngineTests.testLitersToMilliliters' started at 2026-10-29 10:23:25.478
+Test Case 'EngineTests.testLitersToMilliliters' passed (0.1 seconds)
+Test Case 'EngineTests.testMassCannotBecomeVolume' started at 2026-10-29 10:23:25.578
+Test Case 'EngineTests.testMassCannotBecomeVolume' passed (0.0 seconds)
+Test Case 'EngineTests.testMissingPricesAreUnknown' started at 2026-10-29 10:23:25.579
+Test Case 'EngineTests.testMissingPricesAreUnknown' passed (0.0 seconds)
+Test Case 'EngineTests.testNaNRejected' started at 2026-10-29 10:23:25.579
+Test Case 'EngineTests.testNaNRejected' passed (0.0 seconds)
+Test Case 'EngineTests.testNegativeQuantityRejected' started at 2026-10-29 10:23:25.579
+Test Case 'EngineTests.testNegativeQuantityRejected' passed (0.1 seconds)
+Test Case 'EngineTests.testNormalization' started at 2026-10-29 10:23:25.680
+Test Case 'EngineTests.testNormalization' passed (0.0 seconds)
+Test Case 'EngineTests.testPackRounding' started at 2026-10-29 10:23:25.680
+Test Case 'EngineTests.testPackRounding' passed (0.0 seconds)
+Test Case 'EngineTests.testPlanDoesNotRepeat' started at 2026-10-29 10:23:25.680
+Test Case 'EngineTests.testPlanDoesNotRepeat' passed (0.053 seconds)
+Test Case 'EngineTests.testPortionScaling' started at 2026-10-29 10:23:25.734
+Test Case 'EngineTests.testPortionScaling' passed (0.001 seconds)
+Test Case 'EngineTests.testStalePricesUnknown' started at 2026-10-29 10:23:25.734
+Test Case 'EngineTests.testStalePricesUnknown' passed (0.0 seconds)
+Test Case 'EngineTests.testStockDeductedOnceAcrossMeals' started at 2026-10-29 10:23:25.735
+Test Case 'EngineTests.testStockDeductedOnceAcrossMeals' passed (0.0 seconds)
+Test Case 'EngineTests.testStockUnitsConverted' started at 2026-10-29 10:23:25.735
+Test Case 'EngineTests.testStockUnitsConverted' passed (0.0 seconds)
+Test Case 'EngineTests.testTwoLotsAggregated' started at 2026-10-29 10:23:25.735
+Test Case 'EngineTests.testTwoLotsAggregated' passed (0.0 seconds)
+Test Case 'EngineTests.testUnknownRecipeFails' started at 2026-10-29 10:23:25.736
+Test Case 'EngineTests.testUnknownRecipeFails' passed (0.0 seconds)
+Test Case 'EngineTests.testWholeEggRounding' started at 2026-10-29 10:23:25.736
+Test Case 'EngineTests.testWholeEggRounding' passed (0.0 seconds)
+Test Case 'EngineTests.testZeroAllowed' started at 2026-10-29 10:23:25.736
+Test Case 'EngineTests.testZeroAllowed' passed (0.001 seconds)
+Test Suite 'EngineTests' passed at 2026-10-29 10:23:25.737
+	 Executed 30 tests, with 0 failures (0 unexpected) in 0.272 (0.272) seconds
+Test Suite 'StateTests' started at 2026-10-29 10:23:25.737
+Test Case 'StateTests.testAdjacentEventsDoNotConflict' started at 2026-10-29 10:23:25.737
+Test Case 'StateTests.testAdjacentEventsDoNotConflict' passed (0.0 seconds)
+Test Case 'StateTests.testCatalogHasUsableInstructionsAndUnits' started at 2026-10-29 10:23:25.737
+Test Case 'StateTests.testCatalogHasUsableInstructionsAndUnits' passed (0.001 seconds)
+Test Case 'StateTests.testConcurrentCompletionGetsSameSuccessorID' started at 2026-10-29 10:23:25.738
+Test Case 'StateTests.testConcurrentCompletionGetsSameSuccessorID' passed (0.001 seconds)
+Test Case 'StateTests.testConcurrentEditsPreserveBothVersions' started at 2026-10-29 10:23:25.740
+Test Case 'StateTests.testConcurrentEditsPreserveBothVersions' passed (0.0 seconds)
+Test Case 'StateTests.testCorruptedSnapshotRejected' started at 2026-10-29 10:23:25.741
+Test Case 'StateTests.testCorruptedSnapshotRejected' passed (0.0 seconds)
+Test Case 'StateTests.testDailyRecurrencePreservesLocalTimeAcrossDST' started at 2026-10-29 10:23:25.741
+Test Case 'StateTests.testDailyRecurrencePreservesLocalTimeAcrossDST' passed (0.0 seconds)
+Test Case 'StateTests.testDarkScheduleCrossesMidnight' started at 2026-10-29 10:23:25.741
+Test Case 'StateTests.testDarkScheduleCrossesMidnight' passed (0.1 seconds)
+Test Case 'StateTests.testDayScheduleAndEqualTimes' started at 2026-10-29 10:23:25.842
+Test Case 'StateTests.testDayScheduleAndEqualTimes' passed (0.0 seconds)
+Test Case 'StateTests.testDecodedNegativeStockIsRejected' started at 2026-10-29 10:23:25.842
+Test Case 'StateTests.testDecodedNegativeStockIsRejected' passed (0.004 seconds)
+Test Case 'StateTests.testForeignHouseholdRejected' started at 2026-10-29 10:23:25.846
+Test Case 'StateTests.testForeignHouseholdRejected' passed (0.0 seconds)
+Test Case 'StateTests.testForeignOwnerRejected' started at 2026-10-29 10:23:25.846
+Test Case 'StateTests.testForeignOwnerRejected' passed (0.0 seconds)
+Test Case 'StateTests.testFutureSchemaDoesNotResetData' started at 2026-10-29 10:23:25.847
+Test Case 'StateTests.testFutureSchemaDoesNotResetData' passed (0.0 seconds)
+Test Case 'StateTests.testHabitCountsUniqueDays' started at 2026-10-29 10:23:25.847
+Test Case 'StateTests.testHabitCountsUniqueDays' passed (0.0 seconds)
+Test Case 'StateTests.testOfflineEditsCoalesceByRecordID' started at 2026-10-29 10:23:25.847
+Test Case 'StateTests.testOfflineEditsCoalesceByRecordID' passed (0.0 seconds)
+Test Case 'StateTests.testOverlappingEventsConflict' started at 2026-10-29 10:23:25.847
+Test Case 'StateTests.testOverlappingEventsConflict' passed (0.0 seconds)
+Test Case 'StateTests.testRecurringTaskSkipsMissedOccurrences' started at 2026-10-29 10:23:25.847
+Test Case 'StateTests.testRecurringTaskSkipsMissedOccurrences' passed (0.0 seconds)
+Test Case 'StateTests.testRemoteDeletionPropagates' started at 2026-10-29 10:23:25.848
+Test Case 'StateTests.testRemoteDeletionPropagates' passed (0.0 seconds)
+Test Case 'StateTests.testRemoteForeignPrivateDataIgnored' started at 2026-10-29 10:23:25.848
+Test Case 'StateTests.testRemoteForeignPrivateDataIgnored' passed (0.1 seconds)
+Test Case 'StateTests.testSnapshotRoundTripPreservesOutbox' started at 2026-10-29 10:23:25.948
+Test Case 'StateTests.testSnapshotRoundTripPreservesOutbox' passed (0.0 seconds)
+Test Suite 'StateTests' passed at 2026-10-29 10:23:25.949
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.211 (0.211) seconds
+Test Suite 'debug.xctest' passed at 2026-10-29 10:23:25.949
+	 Executed 49 tests, with 0 failures (0 unexpected) in 0.483 (0.483) seconds
+Test Suite 'All tests' passed at 2026-10-29 10:23:25.949
+	 Executed 49 tests, with 0 failures (0 unexpected) in 0.483 (0.483) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.0.3 (18c42c19cac3faf)
+✔ Test run with 0 tests passed after 0.001 seconds.

@@ -1,0 +1,25 @@
+name: DUO iOS build and tests (no distribution)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ios-tests:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode version
+        run: xcodebuild -version
+      - name: Compile, test core and run UI tests
+        run: bash Scripts/check-macos.sh
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: duo-xcode-diagnostics
+          path: |
+            TestResults/*.log
+            TestResults/*.xcresult
+          retention-days: 7
+          if-no-files-found: ignore

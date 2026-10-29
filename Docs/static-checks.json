@@ -1,0 +1,369 @@
+{
+  "scope": "Static syntax, project references, palette and opaque-background contrasts; not iOS execution",
+  "results": [
+    {
+      "name": "Swift syntax App/DUOApp.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax App/LifeViews.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax App/AppStore.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax App/KitchenView.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax App/Theme.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax App/ItemEditor.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax App/SettingsView.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax App/Persistence.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax App/Backend.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax Core/Models.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax Core/Engine.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax Core/Catalog.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax Tests/EngineTests.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax Tests/StateTests.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Swift syntax UITests/DUOUITests.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "PostgreSQL SQL syntax",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/AppStore.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/Backend.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/DUOApp.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/ItemEditor.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/KitchenView.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/LifeViews.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/Persistence.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/SettingsView.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path App/Theme.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path UITests/DUOUITests.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path Resources/Assets.xcassets",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path Resources/PrivacyInfo.xcprivacy",
+      "status": "PASS"
+    },
+    {
+      "name": "Xcode path Config.xcconfig",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Text.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Background.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Secondary.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Ice.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Accent.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/SecondaryReadable.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/SecondaryAccent.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Error.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Surface.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/Control.colorset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON asset Resources/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "status": "PASS"
+    },
+    {
+      "name": "Privacy manifest plist",
+      "status": "PASS"
+    },
+    {
+      "name": "Exact palette Background",
+      "status": "PASS"
+    },
+    {
+      "name": "Exact palette Surface",
+      "status": "PASS"
+    },
+    {
+      "name": "Exact palette Ice",
+      "status": "PASS"
+    },
+    {
+      "name": "Exact palette Accent",
+      "status": "PASS"
+    },
+    {
+      "name": "Exact palette Text",
+      "status": "PASS"
+    },
+    {
+      "name": "Exact palette Secondary",
+      "status": "PASS"
+    },
+    {
+      "name": "Exact palette SecondaryAccent",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast 202632/F5F6F8",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast 53657D/F5F6F8",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast 465D7B/F5F6F8",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast A12C36/F5F6F8",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast 202632/E5EAF1",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast 53657D/E5EAF1",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast 465D7B/E5EAF1",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast A12C36/E5EAF1",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast F1F5FC/0B0D12",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast B6C9E5/0B0D12",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast FFADB5/0B0D12",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast F1F5FC/222936",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast B6C9E5/222936",
+      "status": "PASS"
+    },
+    {
+      "name": "Contrast FFADB5/222936",
+      "status": "PASS"
+    },
+    {
+      "name": "Color reference Control",
+      "status": "PASS"
+    },
+    {
+      "name": "Color reference Background",
+      "status": "PASS"
+    },
+    {
+      "name": "Color reference Error",
+      "status": "PASS"
+    },
+    {
+      "name": "Color reference Surface",
+      "status": "PASS"
+    },
+    {
+      "name": "Color reference Text",
+      "status": "PASS"
+    },
+    {
+      "name": "Color reference SecondaryReadable",
+      "status": "PASS"
+    }
+  ],
+  "contrastRatios": [
+    {
+      "mode": "light",
+      "foreground": "202632",
+      "background": "F5F6F8",
+      "ratio": 14.025
+    },
+    {
+      "mode": "light",
+      "foreground": "53657D",
+      "background": "F5F6F8",
+      "ratio": 5.509
+    },
+    {
+      "mode": "light",
+      "foreground": "465D7B",
+      "background": "F5F6F8",
+      "ratio": 6.24
+    },
+    {
+      "mode": "light",
+      "foreground": "A12C36",
+      "background": "F5F6F8",
+      "ratio": 6.63
+    },
+    {
+      "mode": "light",
+      "foreground": "202632",
+      "background": "E5EAF1",
+      "ratio": 12.545
+    },
+    {
+      "mode": "light",
+      "foreground": "53657D",
+      "background": "E5EAF1",
+      "ratio": 4.927
+    },
+    {
+      "mode": "light",
+      "foreground": "465D7B",
+      "background": "E5EAF1",
+      "ratio": 5.582
+    },
+    {
+      "mode": "light",
+      "foreground": "A12C36",
+      "background": "E5EAF1",
+      "ratio": 5.931
+    },
+    {
+      "mode": "dark",
+      "foreground": "F1F5FC",
+      "background": "0B0D12",
+      "ratio": 17.775
+    },
+    {
+      "mode": "dark",
+      "foreground": "B6C9E5",
+      "background": "0B0D12",
+      "ratio": 11.545
+    },
+    {
+      "mode": "dark",
+      "foreground": "FFADB5",
+      "background": "0B0D12",
+      "ratio": 11.01
+    },
+    {
+      "mode": "dark",
+      "foreground": "F1F5FC",
+      "background": "222936",
+      "ratio": 13.352
+    },
+    {
+      "mode": "dark",
+      "foreground": "B6C9E5",
+      "background": "222936",
+      "ratio": 8.673
+    },
+    {
+      "mode": "dark",
+      "foreground": "FFADB5",
+      "background": "222936",
+      "ratio": 8.27
+    }
+  ],
+  "passed": 69,
+  "failed": 0
+}

@@ -1,0 +1,132 @@
+{
+  "environment": "PGlite embedded PostgreSQL; synthetic auth.uid() and test identities; not a hosted Supabase end-to-end test",
+  "postgres": "PostgreSQL 18.6 (PGlite 0.5.13) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 6.0.5 (1db513782be24469589d7cb8a1f1834e9a33f271), 32-bit",
+  "results": [
+    {
+      "name": "Migration installs on PostgreSQL",
+      "status": "PASS"
+    },
+    {
+      "name": "Create authenticated household",
+      "status": "PASS"
+    },
+    {
+      "name": "Cannot create second household",
+      "status": "PASS"
+    },
+    {
+      "name": "Invitation creation",
+      "status": "PASS"
+    },
+    {
+      "name": "Partner can redeem invitation",
+      "status": "PASS"
+    },
+    {
+      "name": "Consumed invitation cannot be replayed",
+      "status": "PASS"
+    },
+    {
+      "name": "Household refuses third member invitation",
+      "status": "PASS"
+    },
+    {
+      "name": "Shared record starts at revision 1",
+      "status": "PASS"
+    },
+    {
+      "name": "Owner can create private habit",
+      "status": "PASS"
+    },
+    {
+      "name": "Partner sees shared data through RLS",
+      "status": "PASS"
+    },
+    {
+      "name": "Private habit is absent from sync RPC",
+      "status": "PASS"
+    },
+    {
+      "name": "Cannot guess and overwrite private record",
+      "status": "PASS"
+    },
+    {
+      "name": "Partner can edit shared record",
+      "status": "PASS"
+    },
+    {
+      "name": "Stale simultaneous edit is rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Missing revision cannot bypass CAS",
+      "status": "PASS"
+    },
+    {
+      "name": "Negative food quantity rejected server-side",
+      "status": "PASS"
+    },
+    {
+      "name": "Fractional pieces rejected server-side",
+      "status": "PASS"
+    },
+    {
+      "name": "Direct writes denied even to member",
+      "status": "PASS"
+    },
+    {
+      "name": "Batch rolls back all rows on conflict",
+      "status": "PASS"
+    },
+    {
+      "name": "Other household cannot read records via RLS",
+      "status": "PASS"
+    },
+    {
+      "name": "Other household cannot read via sync RPC",
+      "status": "PASS"
+    },
+    {
+      "name": "Cannot forge household ID",
+      "status": "PASS"
+    },
+    {
+      "name": "Cannot take over global record ID",
+      "status": "PASS"
+    },
+    {
+      "name": "Cannot forge membership",
+      "status": "PASS"
+    },
+    {
+      "name": "Deletion creates a revisioned tombstone",
+      "status": "PASS"
+    },
+    {
+      "name": "Partner receives deletion tombstone",
+      "status": "PASS"
+    },
+    {
+      "name": "Deleted record cannot be silently resurrected",
+      "status": "PASS"
+    },
+    {
+      "name": "Anonymous records access denied",
+      "status": "PASS"
+    },
+    {
+      "name": "Anonymous RPC access denied",
+      "status": "PASS"
+    },
+    {
+      "name": "Anonymous household creation denied",
+      "status": "PASS"
+    },
+    {
+      "name": "Missing JWT identity cannot create household",
+      "status": "PASS"
+    }
+  ],
+  "passed": 31,
+  "failed": 0
+}
