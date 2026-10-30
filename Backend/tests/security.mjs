@@ -8,6 +8,7 @@ const alice='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', bob='bbbbbbbb-bbbb-4bbb-8bbb
 await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon; insert into auth.users values ('${alice}'),('${bob}'),('${eve}'),('${fourth}');`);
 await test('Migration 001 installs on PostgreSQL',async()=>{await db.exec(fs.readFileSync(new URL('../001_schema.sql',import.meta.url),'utf8'));});
 await test('Migration 002 installs on PostgreSQL',async()=>{await db.exec(fs.readFileSync(new URL('../002_account_privacy.sql',import.meta.url),'utf8'));});
+await test('Migration 004 installs on PostgreSQL',async()=>{await db.exec(fs.readFileSync(new URL('../004_revoke_invitation.sql',import.meta.url),'utf8'));});
 async function as(id, role='authenticated') { await db.exec('reset role'); await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id ?? '']); await db.exec('set role '+role); }
 async function scalar(sql,args=[]) { return Object.values((await db.query(sql,args)).rows[0])[0]; }
 async function denied(fn) { await assert.rejects(fn); }
@@ -16,6 +17,13 @@ await as(alice);
 await test('Create authenticated household',async()=>{ home=await scalar('select public.create_household()'); assert.ok(home); });
 await test('Cannot create second household',async()=>{await denied(()=>db.query('select public.create_household()'));});
 await test('Invitation creation',async()=>{invite=await scalar('select public.invite_partner()');assert.equal(invite.length,72);});
+await test('Member revokes outstanding invitation',async()=>{assert.equal(await scalar('select public.revoke_invitation()'),1);});
+await as(bob);
+await test('Revoked invitation cannot be redeemed',async()=>{await denied(()=>db.query('select public.join_household($1)',[invite]));});
+await test('Non-member cannot revoke invitation',async()=>{await denied(()=>db.query('select public.revoke_invitation()'));});
+await as(alice);
+await test('Revocation is idempotent',async()=>{assert.equal(await scalar('select public.revoke_invitation()'),0);});
+await test('Member can create a fresh invitation',async()=>{invite=await scalar('select public.invite_partner()');assert.equal(invite.length,72);});
 await as(bob);
 await test('Partner can redeem invitation',async()=>{assert.equal(await scalar('select public.join_household($1)',[invite]),home);});
 await as(eve);
@@ -90,6 +98,7 @@ await test('Erasure marker blocks membership despite still-valid JWT',async()=>{
 await as(null,'anon');
 await test('Anonymous records access denied',async()=>{await denied(()=>db.query('select * from public.records'));});
 await test('Anonymous RPC access denied',async()=>{await denied(()=>db.query('select public.read_records()'));});
+await test('Anonymous invitation revocation denied',async()=>{await denied(()=>db.query('select public.revoke_invitation()'));});
 await test('Anonymous household creation denied',async()=>{await denied(()=>db.query('select public.create_household()'));});
 await as(null);
 await test('Missing JWT identity cannot create household',async()=>{await denied(()=>db.query('select public.create_household()'));});
