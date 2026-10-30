@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import DUOCore
 
 struct SettingsView: View {
@@ -69,7 +70,12 @@ struct SettingsView: View {
                                 }
                             }
                             Text("Code de secours : " + token).textSelection(.enabled).font(.caption)
-                            Text("Valable 24 h, une seule utilisation. L’autre personne doit d’abord installer DUO et se connecter à son propre compte. Si le lien ne s’ouvre pas, copier le code ci-dessus dans DUO.").font(.caption)
+                            Button {
+                                UIPasteboard.general.string = token
+                            } label: {
+                                Label("Copier le code pour mon partenaire", systemImage: "doc.on.doc")
+                            }.accessibilityHint("Copie le code à usage unique dans le presse-papiers pour l’envoyer manuellement.")
+                            Text("Valable 24 h, une seule utilisation. L’autre personne doit d’abord installer DUO et se connecter à son propre compte. Si le lien ne s’ouvre pas, collez le code dans DUO. N’envoyez le code qu’à votre partenaire.").font(.caption)
                         }
                         Button("Synchroniser maintenant") { Task { await store.sync() } }
                         Text("\(store.snapshot.pending.count) modification(s) à envoyer. Synchronisation toutes les 30 secondes lorsque l’application est ouverte.").font(.caption)
