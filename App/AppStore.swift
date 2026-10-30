@@ -132,7 +132,7 @@ import UserNotifications
         guard !syncing, let b = backend, b.session?.user.id == snapshot.userID else { return }
         syncing = true; defer { syncing = false }
         do {
-            try await b.refresh()
+            try await b.refreshIfNeeded()
             var next = snapshot
             let incoming = try await b.fetch()
             try SyncContract.validateFetched(incoming, for: next)
@@ -205,7 +205,7 @@ import UserNotifications
         guard !syncing, let backend, let user = backend.session?.user.id else { error = "Connectez-vous au compte à supprimer."; return }
         syncing = true; defer { syncing = false }
         do {
-            try await backend.refresh()
+            try await backend.refreshIfNeeded()
             try await backend.deleteMyAccount()
             // Only wipe this device after server acknowledgement. On network error
             // preserve the cache and display an actionable failure.
