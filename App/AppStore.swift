@@ -128,6 +128,21 @@ import UserNotifications
         guard let b = backend else { return nil }
         do { return try await b.rpc("invite_partner", as: String.self) } catch { self.error = error.localizedDescription; return nil }
     }
+    func revokeInvitation() async -> Bool {
+        guard !syncing, let b = backend, b.session?.user.id == snapshot.userID else {
+            error = "Connectez-vous à votre foyer avant de révoquer une invitation."
+            return false
+        }
+        syncing = true; defer { syncing = false }
+        do {
+            _ = try await b.rpc("revoke_invitation", as: Int.self)
+            status = "Invitation en attente révoquée"
+            return true
+        } catch {
+            self.error = error.localizedDescription
+            return false
+        }
+    }
     func sync(showErrors: Bool = true) async {
         guard !syncing, let b = backend, b.session?.user.id == snapshot.userID else { return }
         syncing = true; defer { syncing = false }
