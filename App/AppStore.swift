@@ -135,8 +135,8 @@ import UserNotifications
         }
         syncing = true; defer { syncing = false }
         do {
-            _ = try await b.rpc("revoke_invitation", as: Int.self)
-            status = "Invitation en attente révoquée"
+            let revoked = try await b.rpc("revoke_invitation", as: Int.self)
+            status = revoked > 0 ? "Invitation en attente révoquée" : "Aucune invitation active à révoquer"
             return true
         } catch {
             self.error = error.localizedDescription
