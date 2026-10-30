@@ -8,7 +8,7 @@ struct SettingsView: View {
     @AppStorage("exclusions") private var exclusions = ""; @AppStorage("homePriority") private var homePriority = "auto"
     @State private var email = ""; @State private var password = ""; @State private var invitation = ""; @State private var token: String?
     @State private var exportURL: URL?; @State private var deletionPhrase = ""; @State private var confirmDeletion = false
-    @State private var inviteURL: URL?; @State private var recoveryMode = false; @State private var recoveryCode = ""; @State private var recoveryPassword = ""
+    @State private var inviteURL: URL?; @State private var confirmRevocation = false; @State private var recoveryMode = false; @State private var recoveryCode = ""; @State private var recoveryPassword = ""
     var body: some View {
         Form {
             Section("Graphite & Ice") {
@@ -70,6 +70,25 @@ struct SettingsView: View {
                             }
                             Text("Code de secours : " + token).textSelection(.enabled).font(.caption)
                             Text("Valable 24 h, une seule utilisation. L’autre personne doit d’abord installer DUO et se connecter à son propre compte. Si le lien ne s’ouvre pas, copier le code ci-dessus dans DUO.").font(.caption)
+                        }
+                        if token != nil {
+                            Button("Révoquer le code en attente", role: .destructive) {
+                                confirmRevocation = true
+                            }
+                            .disabled(store.syncing)
+                            .confirmationDialog("Invalider le code d’invitation ?", isPresented: $confirmRevocation) {
+                                Button("Révoquer ce code", role: .destructive) {
+                                    Task {
+                                        if await store.revokeInvitation() {
+                                            token = nil
+                                            inviteURL = nil
+                                        }
+                                    }
+                                }
+                                Button("Annuler", role: .cancel) { }
+                            } message: {
+                                Text("Le lien et le code précédemment partagés ne permettront plus de rejoindre le foyer. Vous pourrez créer une nouvelle invitation.")
+                            }
                         }
                         Button("Synchroniser maintenant") { Task { await store.sync() } }
                         Text("\(store.snapshot.pending.count) modification(s) à envoyer. Synchronisation toutes les 30 secondes lorsque l’application est ouverte.").font(.caption)
