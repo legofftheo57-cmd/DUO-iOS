@@ -107,6 +107,10 @@ struct SettingsView: View {
             if let token = store.pendingInvitation { invitation = token }
         }.onChange(of: store.pendingInvitation) { _, newToken in
             if let newToken { invitation = newToken }
+        }.onChange(of: store.backend?.session?.user.id) { _, _ in
+            // Do not show a previously generated invite or private export
+            // after sign-out or when a different identity connects.
+            token = nil; inviteURL = nil; exportURL = nil
         }.confirmationDialog("Supprimer le compte et ses données ?", isPresented: $confirmDeletion, titleVisibility: .visible) {
             Button("Oui, supprimer définitivement", role: .destructive) { Task { await store.deleteAccount(); deletionPhrase = ""; exportURL = nil } }
             Button("Annuler", role: .cancel) { }
