@@ -135,7 +135,18 @@ import UserNotifications
             try await b.refresh()
             var next = snapshot
             let incoming = try await b.fetch()
+            // Reject malformed server batches atomically before applying any row.
+            // Never declare a partial or unsafe snapshot as successfully synced.
+            guard Set(incoming.map(\.id)).count == incoming.count else {
+                throw DuoError.invalid("Réponse du serveur incohérente : doublons détectés. Les données locales sont conservées.")
+            }
             for row in incoming {
+                guard row.householdID == next.householdID,
+                      row.ownerID == nil || row.ownerID == next.userID,
+                      row.revision > 0 else {
+                    throw DuoError.invalid("Réponse du serveur incohérente : identité ou révision invalide. Les données locales sont conservées.")
+                }
+                try row.payload.validate()
                 if let i = next.records.firstIndex(where: { $0.id == row.id }), next.pending.contains(row.id), row.payload == next.records[i].payload, row.deleted == next.records[i].deleted {
                     next.records[i] = row; next.pending.removeAll { $0 == row.id }; next.conflicts.removeAll { $0.id == row.id }
                 } else { next.receive(row) }
