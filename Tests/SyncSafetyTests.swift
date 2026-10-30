@@ -61,6 +61,31 @@ final class SyncSafetyTests: XCTestCase {
         snapshot.receive(foreign)
         XCTAssertTrue(snapshot.records.isEmpty)
     }
+    func testSharedTaskCanBeReceivedBySecondHouseholdMember() {
+        let household = UUID()
+        let firstUser = UUID(), secondUser = UUID()
+        var first = Snapshot(householdID: household, userID: firstUser)
+        var second = Snapshot(householdID: household, userID: secondUser)
+        var row = task(household, title: "Courses pour nous deux")
+        row.revision = 1 // Acknowledged by the server, not a pending local row.
+        first.receive(row)
+        second.receive(row)
+        XCTAssertEqual(first.records, second.records)
+        XCTAssertEqual(second.records.first?.payload, row.payload)
+    }
+    func testRemoteTombstoneRemovesSharedItemWithoutResurrectingIt() {
+        var snapshot = Snapshot()
+        var row = task(snapshot.householdID, title: "Ancienne tâche")
+        row.revision = 1
+        snapshot.receive(row)
+        row.revision = 2
+        row.deleted = true
+        snapshot.receive(row)
+        XCTAssertEqual(snapshot.records.count, 1)
+        XCTAssertTrue(snapshot.records[0].deleted)
+        let visible = snapshot.records.filter { !$0.deleted }
+        XCTAssertTrue(visible.isEmpty)
+    }
     func testPayloadUsesSchemaExpectedBySupabase() throws {
         let values: [(Content, String, String)] = [
             (.food(Food(name: "Riz", quantity: 2, unit: .kg)), "food", "name"),
