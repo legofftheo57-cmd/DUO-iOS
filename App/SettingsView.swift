@@ -71,8 +71,7 @@ struct SettingsView: View {
                             Text("Code de secours : " + token).textSelection(.enabled).font(.caption)
                             Text("Valable 24 h, une seule utilisation. L’autre personne doit d’abord installer DUO et se connecter à son propre compte. Si le lien ne s’ouvre pas, copier le code ci-dessus dans DUO.").font(.caption)
                         }
-                        if token != nil {
-                            Button("Révoquer le code en attente", role: .destructive) {
+                        Button("Révoquer les invitations en attente", role: .destructive) {
                                 confirmRevocation = true
                             }
                             .disabled(store.syncing)
@@ -89,7 +88,6 @@ struct SettingsView: View {
                             } message: {
                                 Text("Le lien et le code précédemment partagés ne permettront plus de rejoindre le foyer. Vous pourrez créer une nouvelle invitation.")
                             }
-                        }
                         Button("Synchroniser maintenant") { Task { await store.sync() } }
                         Text("\(store.snapshot.pending.count) modification(s) à envoyer. Synchronisation toutes les 30 secondes lorsque l’application est ouverte.").font(.caption)
                     }
