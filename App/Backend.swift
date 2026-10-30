@@ -54,6 +54,7 @@ struct AuthSession: Codable {
         guard session != nil else { throw DuoError.unauthorized }
         // The Edge Function verifies the JWT, erases the data transactionally, then
         // deletes the Auth identity with a server-side service role secret.
+        try await refreshIfNeeded()
         _ = try await request("/functions/v1/delete-account", body: Data("{}".utf8))
         Keychain.clear(); session = nil
     }
@@ -62,12 +63,20 @@ struct AuthSession: Codable {
         let data = try await request("/auth/v1/token?grant_type=refresh_token", body: JSONSerialization.data(withJSONObject: ["refresh_token":s.refresh_token]), authenticated: false)
         let value = try JSONDecoder().decode(AuthSession.self, from: data); try Keychain.save(data); session = value
     }
+    func refreshIfNeeded() async throws {
+        guard let value = session else { throw DuoError.unauthorized }
+        if SessionRefreshPolicy.shouldRefresh(expiresAt: value.expires_at, now: Date().timeIntervalSince1970) {
+            try await refresh()
+        }
+    }
     func rpc<T: Decodable>(_ name: String, _ body: [String: Any] = [:], as type: T.Type) async throws -> T {
+        try await refreshIfNeeded()
         let data = try await request("/rest/v1/rpc/" + name, body: JSONSerialization.data(withJSONObject: body))
         return try JSONDecoder().decode(T.self, from: data)
     }
     func household() async throws -> UUID? {
         struct Member: Decodable { let household_id: UUID }
+        try await refreshIfNeeded()
         let data = try await request("/rest/v1/members?select=household_id", method: "GET")
         return try JSONDecoder().decode([Member].self, from: data).first?.household_id
     }
@@ -84,6 +93,7 @@ struct AuthSession: Codable {
         guard !value.isEmpty, value.count <= 800 else { throw DuoError.invalid("Question vide ou trop longue.") }
         // Only the text explicitly submitted by the user is transmitted. Never the snapshot,
         // calendars, session tokens or household ID (authentication is sent in the HTTP header).
+        try await refreshIfNeeded()
         let payload = try JSONSerialization.data(withJSONObject: ["question": value])
         struct Answer: Decodable { let answer: String }
         let response = try await request("/functions/v1/duo-assistant", body: payload)

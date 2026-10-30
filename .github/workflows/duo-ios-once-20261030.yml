@@ -1,0 +1,61 @@
+name: DUO iOS - validation unique du 30 octobre 2026
+
+# One-shot workflow: the push event fires only when THIS workflow file changes
+# on the review branch. No cron, no pull_request or follow-up commits trigger it.
+on:
+  push:
+    branches:
+      - fix/joe-reschedule-and-core-checks-20261029
+    paths:
+      - .github/workflows/duo-ios-once-20261030.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duo-ios-once-20261030
+  cancel-in-progress: false
+
+jobs:
+  ios-preflight:
+    name: Compiler DUO et tester le simulateur (sans signature)
+    runs-on: macos-15
+    timeout-minutes: 18
+    env:
+      CODE_SIGNING_ALLOWED: "NO"
+    steps:
+      - name: Checkout de la branche de revue
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Versions Apple et Swift
+        run: |
+          xcodebuild -version
+          swift --version
+          xcrun simctl list devices available
+      - name: Tests du noyau Swift
+        run: swift test --jobs 2
+      - name: Compilation iOS Simulator sans signature
+        run: |
+          xcodebuild -project DUO.xcodeproj -scheme DUO -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/DUODerivedData" \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO build
+      - name: Choisir un simulateur iPhone disponible
+        id: simulator
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,subprocess
+          d=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))
+          devices=[x for runtime,items in d['devices'].items() if 'iOS' in runtime for x in items if 'iPhone' in x['name'] and x['state'] in ('Shutdown','Booted')]
+          if not devices:
+              raise SystemExit('Pas de simulateur iPhone disponible dans ce runner.')
+          print('udid='+devices[0]['udid'])
+          PY
+      - name: Parcours UI sur simulateur iPhone
+        run: |
+          xcodebuild -project DUO.xcodeproj -scheme DUO -configuration Debug \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
+            -derivedDataPath "$RUNNER_TEMP/DUODerivedData" \
+            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
+            test

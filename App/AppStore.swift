@@ -132,11 +132,18 @@ import UserNotifications
         guard !syncing, let b = backend, b.session?.user.id == snapshot.userID else { return }
         syncing = true; defer { syncing = false }
         do {
-            try await b.refresh()
+            try await b.refreshIfNeeded()
             var next = snapshot
             let incoming = try await b.fetch()
+            try SyncContract.validateFetched(incoming, for: next)
             for row in incoming {
-                if let i = next.records.firstIndex(where: { $0.id == row.id }), next.pending.contains(row.id), row.payload == next.records[i].payload, row.deleted == next.records[i].deleted {
+                guard row.householdID == next.householdID,
+                      row.ownerID == nil || row.ownerID == next.userID,
+                      row.revision > 0 else {
+                    throw DuoError.invalid("Réponse du serveur incohérente : identité ou révision invalide. Les données locales sont conservées.")
+                }
+                try row.payload.validate()
+                if let i = next.records.firstIndex(where: { $0.id == row.id }), next.pending.contains(row.id), row.revision >= next.records[i].revision, row.payload == next.records[i].payload, row.deleted == next.records[i].deleted {
                     next.records[i] = row; next.pending.removeAll { $0 == row.id }; next.conflicts.removeAll { $0.id == row.id }
                 } else { next.receive(row) }
             }
@@ -146,6 +153,7 @@ import UserNotifications
             let pending = next.records.filter { next.pending.contains($0.id) }
             if !pending.isEmpty {
                 let acknowledged = try await b.push(pending)
+                try SyncContract.validateAcknowledged(acknowledged, pending: pending, for: next)
                 for row in acknowledged { if let i = next.records.firstIndex(where: { $0.id == row.id }) { next.records[i] = row }; next.pending.removeAll { $0 == row.id } }
             }
             try disk?.write(next); snapshot = next
@@ -197,7 +205,7 @@ import UserNotifications
         guard !syncing, let backend, let user = backend.session?.user.id else { error = "Connectez-vous au compte à supprimer."; return }
         syncing = true; defer { syncing = false }
         do {
-            try await backend.refresh()
+            try await backend.refreshIfNeeded()
             try await backend.deleteMyAccount()
             // Only wipe this device after server acknowledgement. On network error
             // preserve the cache and display an actionable failure.

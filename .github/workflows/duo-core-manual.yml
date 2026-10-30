@@ -1,0 +1,40 @@
+name: DUO - verification noyau (manuel)
+
+# This is deliberately manual: GitHub Actions minutes can be billable.
+# It validates Linux-compatible components only, NOT an iOS app build.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duo-core-manual
+  cancel-in-progress: false
+
+jobs:
+  core-tests:
+    name: Swift Core, SQL embarque et controles de packaging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Afficher les outils
+        run: |
+          swift --version
+          node --version
+          python3 --version
+      - name: Tests unitaires Swift du noyau
+        run: swift test --jobs 2
+      - name: Tests de migration et securite PostgreSQL embarque
+        run: |
+          npm ci --prefix Backend/tests --ignore-scripts --no-audit --no-fund
+          node Backend/tests/security.mjs
+      - name: Controles statiques du packaging
+        run: python3 Scripts/check_essentials.py

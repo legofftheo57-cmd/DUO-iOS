@@ -78,9 +78,9 @@ public enum Content: Codable, Equatable, Sendable {
         case .food(let f): try f.validate()
         case .shopping(let s): try Food(name: s.ingredient.name, quantity: s.ingredient.quantity, unit: s.ingredient.unit).validate()
         case .meal(let m): guard (1...12).contains(m.portions), !m.recipeID.isEmpty else { throw DuoError.invalid("Portions invalides.") }
-        case .task(let t): guard !normalized(t.title).isEmpty, (0...365).contains(t.repeatDays) else { throw DuoError.invalid("Tâche ou récurrence invalide.") }
-        case .event(let e): guard !normalized(e.title).isEmpty, e.end > e.start else { throw DuoError.invalid("La fin doit suivre le début.") }
-        case .habit(let h): guard !normalized(h.title).isEmpty, (1...7).contains(h.weeklyGoal) else { throw DuoError.invalid("Objectif entre 1 et 7 jours.") }
+        case .task(let t): guard !normalized(t.title).isEmpty, t.title.count <= 200, (0...365).contains(t.repeatDays) else { throw DuoError.invalid("Tâche ou récurrence invalide.") }
+        case .event(let e): guard !normalized(e.title).isEmpty, e.title.count <= 200, !normalized(e.timeZone).isEmpty, e.end > e.start else { throw DuoError.invalid("La fin doit suivre le début.") }
+        case .habit(let h): guard !normalized(h.title).isEmpty, h.title.count <= 200, (1...7).contains(h.weeklyGoal) else { throw DuoError.invalid("Objectif entre 1 et 7 jours.") }
         }
     }
 }
@@ -111,8 +111,11 @@ public struct Snapshot: Codable, Sendable {
         if !pending.contains(row.id) { pending.append(row.id) }
     }
     public mutating func receive(_ remote: Record) {
-        guard remote.householdID == householdID, remote.ownerID == nil || remote.ownerID == userID else { return }
+        // An invalid or stale server response must never overwrite a valid offline cache.
+        guard remote.householdID == householdID, remote.ownerID == nil || remote.ownerID == userID,
+              remote.revision >= 0, (try? remote.payload.validate()) != nil else { return }
         if let i = records.firstIndex(where: { $0.id == remote.id }) {
+            guard remote.revision >= records[i].revision else { return }
             if pending.contains(remote.id) {
                 if remote.revision > records[i].revision && !conflicts.contains(where: { $0.id == remote.id }) { conflicts.append(Conflict(local: records[i], remote: remote)) }
             } else { records[i] = remote }
