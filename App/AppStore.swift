@@ -135,11 +135,7 @@ import UserNotifications
             try await b.refresh()
             var next = snapshot
             let incoming = try await b.fetch()
-            // Reject malformed server batches atomically before applying any row.
-            // Never declare a partial or unsafe snapshot as successfully synced.
-            guard Set(incoming.map(\.id)).count == incoming.count else {
-                throw DuoError.invalid("Réponse du serveur incohérente : doublons détectés. Les données locales sont conservées.")
-            }
+            try SyncContract.validateFetched(incoming, for: next)
             for row in incoming {
                 guard row.householdID == next.householdID,
                       row.ownerID == nil || row.ownerID == next.userID,
@@ -147,7 +143,7 @@ import UserNotifications
                     throw DuoError.invalid("Réponse du serveur incohérente : identité ou révision invalide. Les données locales sont conservées.")
                 }
                 try row.payload.validate()
-                if let i = next.records.firstIndex(where: { $0.id == row.id }), next.pending.contains(row.id), row.payload == next.records[i].payload, row.deleted == next.records[i].deleted {
+                if let i = next.records.firstIndex(where: { $0.id == row.id }), next.pending.contains(row.id), row.revision >= next.records[i].revision, row.payload == next.records[i].payload, row.deleted == next.records[i].deleted {
                     next.records[i] = row; next.pending.removeAll { $0 == row.id }; next.conflicts.removeAll { $0.id == row.id }
                 } else { next.receive(row) }
             }
@@ -157,6 +153,7 @@ import UserNotifications
             let pending = next.records.filter { next.pending.contains($0.id) }
             if !pending.isEmpty {
                 let acknowledged = try await b.push(pending)
+                try SyncContract.validateAcknowledged(acknowledged, pending: pending, for: next)
                 for row in acknowledged { if let i = next.records.firstIndex(where: { $0.id == row.id }) { next.records[i] = row }; next.pending.removeAll { $0 == row.id } }
             }
             try disk?.write(next); snapshot = next
