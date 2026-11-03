@@ -1,0 +1,115 @@
+{
+  "scope": "Dependency-free static checks. Not a simulator build, cloud deployment, or SQL execution.",
+  "passed": 27,
+  "failed": 0,
+  "results": [
+    {
+      "name": "DUO URL scheme",
+      "status": "PASS"
+    },
+    {
+      "name": "Information plist bundle keys",
+      "status": "PASS"
+    },
+    {
+      "name": "Explicit plist in project",
+      "status": "PASS"
+    },
+    {
+      "name": "No advertising ID declared",
+      "status": "PASS"
+    },
+    {
+      "name": "No embedded secret key",
+      "status": "PASS"
+    },
+    {
+      "name": "Invitation UI and URL entry",
+      "status": "PASS"
+    },
+    {
+      "name": "Deep link handling",
+      "status": "PASS"
+    },
+    {
+      "name": "AI requires direct action",
+      "status": "PASS"
+    },
+    {
+      "name": "AI provider key only server-side",
+      "status": "PASS"
+    },
+    {
+      "name": "AI model server-configurable",
+      "status": "PASS"
+    },
+    {
+      "name": "AI server does not send snapshot",
+      "status": "PASS"
+    },
+    {
+      "name": "AI cap and deletion counter purge",
+      "status": "PASS"
+    },
+    {
+      "name": "Account erasure files preserved",
+      "status": "PASS"
+    },
+    {
+      "name": "All 10 Swift app sources registered",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Assets.xcassets",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Ice.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON SecondaryReadable.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Surface.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Accent.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Control.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Text.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Error.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON SecondaryAccent.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Background.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON AppIcon.appiconset",
+      "status": "PASS"
+    },
+    {
+      "name": "JSON Secondary.colorset",
+      "status": "PASS"
+    },
+    {
+      "name": "Privacy manifest parses",
+      "status": "PASS"
+    }
+  ]
+}
