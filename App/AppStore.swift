@@ -5,6 +5,7 @@ import UserNotifications
 
 @MainActor @Observable final class AppStore {
     var snapshot = Snapshot(); var error: String?; var status = "Sur cet iPhone"; var syncing = false; var ready = false
+    var lastSuccessfulSync: Date?
     var backend: Backend?; var pendingInvitation: String?; private var disk: DiskStore?
     var records: [Record] { snapshot.records.filter { !$0.deleted } }
     var foods: [Food] { records.compactMap { if case .food(let f) = $0.payload { return f }; return nil } }
@@ -92,22 +93,22 @@ import UserNotifications
         }
     }
     func connect(email: String, password: String, createAccount: Bool) async {
-        guard !syncing else { return }; syncing = true; defer { syncing = false }
+        guard !syncing else { return }; syncing = true; error = nil; defer { syncing = false }
         do {
             let b = try Backend()
             if createAccount { try await b.signup(email: email, password: password); status = "Vérifiez votre e-mail, puis connectez-vous."; return }
             if !password.isEmpty { try await b.login(email: email, password: password) } else { try await b.refresh() }
-            backend = b
             guard let user = b.session?.user.id else { throw DuoError.unauthorized }
             if let home = try await b.household() { try selectCache(user: user, home: home); status = "Compte connecté" }
             else { status = "Compte connecté : créez ou rejoignez un foyer." }
+            backend = b; lastSuccessfulSync = nil
         } catch { self.error = error.localizedDescription }
     }
     private func selectCache(user: UUID, home: UUID) throws {
         let nextDisk = try DiskStore(scope: user.uuidString + "-" + home.uuidString)
         let next = try nextDisk.read() ?? Snapshot(householdID: home, userID: user)
         guard next.userID == user, next.householdID == home else { throw DuoError.unauthorized }
-        disk = nextDisk; snapshot = next; ready = true
+        disk = nextDisk; snapshot = next; ready = true; lastSuccessfulSync = nil
     }
     func receiveInviteURL(_ url: URL) {
         guard let token = InviteLink.read(url) else { error = "Lien d’invitation DUO invalide."; return }
@@ -125,8 +126,10 @@ import UserNotifications
         } catch { self.error = error.localizedDescription }
     }
     func invite() async -> String? {
-        guard let b = backend else { return nil }
-        do { return try await b.rpc("invite_partner", as: String.self) } catch { self.error = error.localizedDescription; return nil }
+        guard !syncing, let b = backend, b.session?.user.id == snapshot.userID else { return nil }
+        syncing = true; error = nil; defer { syncing = false }
+        do { try await b.refresh(); return try await b.rpc("invite_partner", as: String.self) }
+        catch { self.error = error.localizedDescription; return nil }
     }
     func revokeInvitation() async -> Bool {
         guard !syncing, let b = backend, b.session?.user.id == snapshot.userID else {
@@ -147,6 +150,7 @@ import UserNotifications
         guard !syncing, let b = backend, b.session?.user.id == snapshot.userID else { return }
         syncing = true; defer { syncing = false }
         do {
+            guard let disk else { throw DuoError.invalid("Stockage indisponible : synchronisation suspendue.") }
             try await b.refresh()
             var next = snapshot
             let incoming = try await b.fetch()
@@ -156,19 +160,25 @@ import UserNotifications
                 } else { next.receive(row) }
             }
             // Save conflicts before any push, so interruption cannot lose either version.
-            try disk?.write(next); snapshot = next
+            try disk.write(next); snapshot = next
             guard next.conflicts.isEmpty else { status = "Conflit à résoudre"; return }
             let pending = next.records.filter { next.pending.contains($0.id) }
             if !pending.isEmpty {
                 let acknowledged = try await b.push(pending)
                 for row in acknowledged { if let i = next.records.firstIndex(where: { $0.id == row.id }) { next.records[i] = row }; next.pending.removeAll { $0 == row.id } }
             }
-            try disk?.write(next); snapshot = next
+            try disk.write(next); snapshot = next
             let obsoleteReminders = next.records.filter { row in
                 if row.deleted { return true }; if case .task(let t) = row.payload { return t.completed != nil }; return false
             }.map { $0.id.uuidString }
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: obsoleteReminders)
-            status = "Synchronisé à " + Date().formatted(date: .omitted, time: .shortened)
+            if next.pending.isEmpty {
+                lastSuccessfulSync = Date()
+                status = "Synchronisé à " + (lastSuccessfulSync ?? Date()).formatted(date: .omitted, time: .shortened)
+            } else {
+                status = "Envoi partiel • \(next.pending.count) modification(s) à reprendre"
+            }
+            error = nil
         } catch { status = "Modifications conservées • synchronisation à reprendre"; if showErrors { self.error = error.localizedDescription } }
     }
     func resolve(_ conflict: Conflict, keepLocal: Bool) {
@@ -185,6 +195,7 @@ import UserNotifications
     }
     func requestPasswordReset(email: String) async {
         guard !syncing else { return }
+        syncing = true; error = nil; defer { syncing = false }
         do {
             let b = try Backend()
             try await b.requestPasswordReset(email: email)
@@ -192,7 +203,7 @@ import UserNotifications
         } catch { self.error = error.localizedDescription }
     }
     func completePasswordReset(email: String, code: String, password: String) async {
-        guard !syncing else { return }; syncing = true; defer { syncing = false }
+        guard !syncing else { return }; syncing = true; error = nil; defer { syncing = false }
         do {
             let b = try Backend()
             try await b.completePasswordReset(email: email, token: code, newPassword: password)
@@ -232,7 +243,10 @@ import UserNotifications
     }
     func disconnect() async {
         guard !syncing else { return }
-        await backend?.logout(); backend = nil
+        // Hold the same operation lock as sync across the logout await.
+        syncing = true; error = nil; defer { syncing = false }
+        await backend?.logout(); backend = nil; lastSuccessfulSync = nil
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         do { let local = try DiskStore(scope: "local"); snapshot = try local.read() ?? Snapshot(); disk = local; status = "Sur cet iPhone" }
         catch { ready = false; self.error = error.localizedDescription }
     }
@@ -268,3 +282,4 @@ private struct DuoExport: Encodable {
     let scope: String
     let snapshot: Snapshot
 }
+
