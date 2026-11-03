@@ -36,7 +36,7 @@ struct RootView: View {
         .sheet(isPresented: $assistant) { NavigationStack { AssistantView() } }
         .onOpenURL { url in store.receiveInviteURL(url); if store.pendingInvitation != nil { settings = true } }
         .alert("DUO", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("Compris") { store.error = nil } } message: { Text(store.error ?? "") }
-        .task { await store.restoreSessionIfAvailable(); while !Task.isCancelled { try? await Task.sleep(for: .seconds(30)); if phase == .active { await store.sync(showErrors: false) } } }
+        .task { await store.restoreSessionIfAvailable(); while !Task.isCancelled { do { try await Task.sleep(for: .seconds(30)) } catch { return }; guard !Task.isCancelled else { return }; if phase == .active { await store.sync(showErrors: false) } } }
         .onChange(of: phase) { _, next in if next == .active { Task { await store.sync(showErrors: false) } } }
     }
     private func nav<V: View>(_ title: String, @ViewBuilder content: () -> V) -> some View {
@@ -89,3 +89,4 @@ struct HomeView: View {
         ForEach(events) { row in if case .event(let e) = row.payload { Label(e.start.formatted(date: .omitted, time: .shortened) + " · " + e.title, systemImage: e.sport ? "figure.run" : "calendar") } }
     }
 }
+
