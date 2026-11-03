@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("nightStart") private var nightStart = 1200; @AppStorage("nightEnd") private var nightEnd = 420
     @AppStorage("exclusions") private var exclusions = ""; @AppStorage("homePriority") private var homePriority = "auto"
     @State private var email = ""; @State private var password = ""; @State private var invitation = ""; @State private var token: String?
+    @State private var confirmDisconnect = false
     @State private var exportURL: URL?; @State private var deletionPhrase = ""; @State private var confirmDeletion = false
     @State private var inviteURL: URL?; @State private var confirmRevocation = false; @State private var recoveryMode = false; @State private var recoveryCode = ""; @State private var recoveryPassword = ""
     var body: some View {
@@ -88,10 +89,27 @@ struct SettingsView: View {
                             } message: {
                                 Text("Le lien et le code précédemment partagés ne permettront plus de rejoindre le foyer. Vous pourrez créer une nouvelle invitation.")
                             }
-                        Button("Synchroniser maintenant") { Task { await store.sync() } }
+                        Button("Synchroniser maintenant") { Task { await store.sync() } }.disabled(store.syncing)
+                        if store.syncing { ProgressView("Synchronisation en cours…") }
+                        if !store.snapshot.conflicts.isEmpty {
+                            Label("\(store.snapshot.conflicts.count) conflit(s) à résoudre avant l’envoi", systemImage: "exclamationmark.triangle").font(.caption)
+                        }
+                        if let last = store.lastSuccessfulSync {
+                            Text("Dernière synchronisation réussie : " + last.formatted(date: .abbreviated, time: .shortened)).font(.caption)
+                        }
                         Text("\(store.snapshot.pending.count) modification(s) à envoyer. Synchronisation toutes les 30 secondes lorsque l’application est ouverte.").font(.caption)
                     }
-                    Button("Se déconnecter") { Task { await store.disconnect() } }
+                    Button("Se déconnecter") {
+                        if store.snapshot.pending.isEmpty { Task { await store.disconnect() } }
+                        else { confirmDisconnect = true }
+                    }.disabled(store.syncing)
+                    .confirmationDialog("Des modifications restent sur cet iPhone", isPresented: $confirmDisconnect, titleVisibility: .visible) {
+                        Button("Synchroniser d’abord") { Task { await store.sync() } }
+                        Button("Se déconnecter en conservant la copie locale") { Task { await store.disconnect() } }
+                        Button("Annuler", role: .cancel) { }
+                    } message: {
+                        Text("Les modifications non envoyées restent dans le cache de ce compte sur cet iPhone. Reconnectez-vous au même foyer pour les reprendre. Votre partenaire ne les voit pas encore.")
+                    }
                 }
             }
             Section("Confidentialité") {
@@ -129,3 +147,4 @@ struct SettingsView: View {
         Binding(get: { Calendar.current.date(bySettingHour: minutes.wrappedValue / 60, minute: minutes.wrappedValue % 60, second: 0, of: Date()) ?? Date() }, set: { value in let c = Calendar.current.dateComponents([.hour, .minute], from: value); minutes.wrappedValue = (c.hour ?? 0) * 60 + (c.minute ?? 0) })
     }
 }
+
