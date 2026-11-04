@@ -15,7 +15,11 @@ struct AuthSession: Codable {
         if let data = try Keychain.read() { session = try JSONDecoder().decode(AuthSession.self, from: data) }
     }
     func request(_ path: String, method: String = "POST", body: Data? = nil, authenticated: Bool = true, bearerToken: String? = nil) async throws -> Data {
-        guard let url = URL(string: path, relativeTo: base) else { throw DuoError.invalid("Adresse invalide.") }
+        guard let url = URL(string: path, relativeTo: base)?.absoluteURL,
+              url.scheme == "https", url.host == base.host, url.port == base.port,
+              url.user == nil, url.password == nil
+        else { throw DuoError.invalid("Adresse du service non autorisée.") }
+        // Never send a bearer token to an origin other than this Supabase project.
         var r = URLRequest(url: url); r.httpMethod = method; r.httpBody = body; r.timeoutInterval = 25
         r.setValue(key, forHTTPHeaderField: "apikey"); r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if authenticated { guard let token = bearerToken ?? session?.access_token else { throw DuoError.unauthorized }; r.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
