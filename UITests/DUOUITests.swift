@@ -45,6 +45,26 @@ final class DUOUITests: XCTestCase {
         app.tabBars.buttons["Courses"].tap()
         XCTAssertTrue(app.staticTexts["Riz test"].waitForExistence(timeout: 5))
     }
+    func testUndoCompletedHouseholdTask() {
+        app.tabBars.buttons["Tâches"].tap()
+        app.buttons["addTask"].tap()
+        let title = app.textFields["itemName"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        title.typeText("DUO annulation test")
+        app.buttons["saveItem"].tap()
+        let finish = app.buttons["Terminer DUO annulation test"]
+        XCTAssertTrue(finish.waitForExistence(timeout: 5))
+        finish.tap()
+        let history = app.switches["Voir l’historique"]
+        XCTAssertTrue(history.waitForExistence(timeout: 5))
+        history.tap()
+        let undo = app.buttons["Rouvrir DUO annulation test"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        undo.tap()
+        history.tap()
+        XCTAssertTrue(app.buttons["Terminer DUO annulation test"].waitForExistence(timeout: 5))
+    }
     func testAccessibilityAudit() throws {
         for title in ["Accueil", "Tâches", "Courses", "Planning"] { app.tabBars.buttons[title].tap(); try app.performAccessibilityAudit() }
     }
