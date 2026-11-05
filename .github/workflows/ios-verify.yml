@@ -2,6 +2,12 @@ name: DUO - verification iOS (manuel)
 
 # Manual only: private macOS runner time consumes included GitHub Actions credits.
 on:
+  # Deliberate single QA run on the release candidate; no automatic builds on other commits.
+  push:
+    branches:
+      - work/solo-iphone-install-20261105
+    paths:
+      - Docs/duo-solo-final-qa-request-20261105.txt
   workflow_dispatch:
     inputs:
       include_ui_tests:
