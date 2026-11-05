@@ -58,9 +58,28 @@ struct HouseholdView: View {
     @State private var adding = false; @State private var history = false
     var body: some View {
         List {
-            Section { NavigationLink { HabitsView() } label: { Label("Sport & habitudes", systemImage: "figure.mind.and.body") }; Button("Ajouter une tâche") { adding = true }; Toggle("Voir l’historique", isOn: $history) }
+            Section {
+                Button { adding = true } label: { Label("Créer une tâche", systemImage: "plus.circle.fill") }
+                    .accessibilityIdentifier("addTask")
+                Menu {
+                    Button("Faire la vaisselle") { addPreset("Faire la vaisselle") }
+                    Button("Lancer une lessive") { addPreset("Lancer une lessive") }
+                    Button("Passer l’aspirateur") { addPreset("Passer l’aspirateur") }
+                    Button("Sortir les poubelles") { addPreset("Sortir les poubelles") }
+                    Button("Changer les draps") { addPreset("Changer les draps") }
+                } label: { Label("Ajouter une tâche habituelle", systemImage: "sparkles") }
+                NavigationLink { HabitsView() } label: { Label("Sport & habitudes", systemImage: "figure.mind.and.body") }
+                Toggle("Voir l’historique", isOn: $history)
+            }
             Section(history ? "Actions accomplies" : "À faire, à votre rythme") {
-                let tasks = store.records.filter { if case .task(let t) = $0.payload { return (t.completed != nil) == history }; return false }
+                let tasks = store.records.filter {
+                    if case .task(let task) = $0.payload { return (task.completed != nil) == history }
+                    return false
+                }.sorted { first, second in
+                    guard case .task(let a) = first.payload, case .task(let b) = second.payload else { return false }
+                    if history { return (a.completed ?? .distantPast) > (b.completed ?? .distantPast) }
+                    return (a.due ?? .distantFuture) < (b.due ?? .distantFuture)
+                }
                 if tasks.isEmpty { Text(history ? "L’historique est vide." : "Tout est tranquille pour le moment.").foregroundStyle(Color("SecondaryReadable")) }
                 ForEach(tasks) { row in
                     if case .task(let t) = row.payload {
@@ -89,6 +108,19 @@ struct HouseholdView: View {
             }
         }.sheet(isPresented: $adding) { NavigationStack { ItemEditor(kind: "task") } }
         .scrollContentBackground(.hidden).background(Color("Background"))
+    }
+    private func addPreset(_ title: String) {
+        let exists = store.records.contains { row in
+            if case .task(let task) = row.payload {
+                return task.completed == nil && normalized(task.title) == normalized(title)
+            }
+            return false
+        }
+        if exists {
+            store.error = "Cette tâche est déjà dans votre liste."
+            return
+        }
+        store.put(.task(HouseTask(title: title, assignee: store.snapshot.userID.uuidString)))
     }
     private func describe(_ row: Record) -> String {
         if row.deleted { return "Supprimé" }
