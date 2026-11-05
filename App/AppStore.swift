@@ -219,6 +219,36 @@ import UserNotifications
         try encoder.encode(archive).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         return url
     }
+    func previewLocalImport(from url: URL) throws -> Snapshot {
+        guard DUORelease.soloOnly, backend == nil else {
+            throw DuoError.invalid("La restauration est réservée au mode personnel hors ligne.")
+        }
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        let data = try Data(contentsOf: url)
+        guard data.count <= 10_000_000 else {
+            throw DuoError.invalid("Ce fichier est trop volumineux pour une sauvegarde DUO.")
+        }
+        let archive = try JSONDecoder().decode(DuoExport.self, from: data)
+        guard archive.format == "DUO-export-v1", archive.scope == "local" else {
+            throw DuoError.invalid("Seules les sauvegardes DUO locales sont acceptées.")
+        }
+        let checked = try Snapshot.decode(JSONEncoder().encode(archive.snapshot))
+        guard checked.conflicts.isEmpty else {
+            throw DuoError.invalid("La sauvegarde contient des conflits non résolus.")
+        }
+        return checked
+    }
+    func restoreLocalImport(_ imported: Snapshot) throws {
+        guard DUORelease.soloOnly, backend == nil, ready, !syncing, let disk else {
+            throw DuoError.invalid("La restauration locale est indisponible.")
+        }
+        let checked = try Snapshot.decode(JSONEncoder().encode(imported))
+        try disk.write(checked)
+        snapshot = checked
+        status = "Sauvegarde restaurée sur cet iPhone"
+        error = nil
+    }
     func deleteAccount() async {
         guard !syncing, let backend, let user = backend.session?.user.id else { error = "Connectez-vous au compte à supprimer."; return }
         syncing = true; defer { syncing = false }
@@ -276,10 +306,16 @@ extension UserDefaults {
     func string(forKey key: String, default fallback: String) -> String { string(forKey: key) ?? fallback }
 }
 
-private struct DuoExport: Encodable {
-    let format = "DUO-export-v1"
+private struct DuoExport: Codable {
+    let format: String
     let exportedAt: Date
     let scope: String
     let snapshot: Snapshot
+    init(exportedAt: Date, scope: String, snapshot: Snapshot) {
+        self.format = "DUO-export-v1"
+        self.exportedAt = exportedAt
+        self.scope = scope
+        self.snapshot = snapshot
+    }
 }
 
