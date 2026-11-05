@@ -1,6 +1,12 @@
 import SwiftUI
 import DUOCore
 
+// The first usable iPhone build is deliberately offline and single-device.
+// Change this flag only when two-device sync has been tested and approved.
+enum DUORelease {
+    static let soloOnly = true
+}
+
 @main @MainActor struct DUOApp: App {
     @State private var store = AppStore()
     @AppStorage("appearance") private var appearance = "system"
@@ -34,10 +40,27 @@ struct RootView: View {
         .overlay { if store.syncing { ProgressView("Synchronisation…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) } }
         .sheet(isPresented: $settings) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $assistant) { NavigationStack { AssistantView() } }
-        .onOpenURL { url in store.receiveInviteURL(url); if store.pendingInvitation != nil { settings = true } }
+        .onOpenURL { url in
+            guard !DUORelease.soloOnly else { return }
+            store.receiveInviteURL(url)
+            if store.pendingInvitation != nil { settings = true }
+        }
         .alert("DUO", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("Compris") { store.error = nil } } message: { Text(store.error ?? "") }
-        .task { await store.restoreSessionIfAvailable(); while !Task.isCancelled { do { try await Task.sleep(for: .seconds(30)) } catch { return }; guard !Task.isCancelled else { return }; if phase == .active { await store.sync(showErrors: false) } } }
-        .onChange(of: phase) { _, next in if next == .active { Task { await store.sync(showErrors: false) } } }
+        .task {
+            // In solo mode the app never authenticates or synchronises in the background.
+            guard !DUORelease.soloOnly else { return }
+            await store.restoreSessionIfAvailable()
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
+                guard !Task.isCancelled else { return }
+                if phase == .active { await store.sync(showErrors: false) }
+            }
+        }
+        .onChange(of: phase) { _, next in
+            if !DUORelease.soloOnly && next == .active {
+                Task { await store.sync(showErrors: false) }
+            }
+        }
     }
     private func nav<V: View>(_ title: String, @ViewBuilder content: () -> V) -> some View {
         NavigationStack { content().navigationTitle(title).toolbar { ToolbarItemGroup(placement: .topBarTrailing) {
