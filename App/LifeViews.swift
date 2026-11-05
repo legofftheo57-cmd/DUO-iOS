@@ -67,7 +67,7 @@ struct HouseholdView: View {
                         HStack {
                             if !history { Button { store.toggle(row) } label: { Image(systemName: "circle").frame(width: 44, height: 44) }.buttonStyle(.borderless).accessibilityLabel("Terminer \(t.title)") }
                             NavigationLink { ItemEditor(kind: "task", row: row) } label: {
-                                VStack(alignment: .leading, spacing: 4) { Text(t.title); Text(store.assigneeLabel(t.assignee)).font(.caption).foregroundStyle(Color("SecondaryReadable")); if let due = t.due { Text(due.formatted(date: .abbreviated, time: .shortened)).font(.caption) }; if let done = t.completed { Text("Terminée " + done.formatted(date: .abbreviated, time: .shortened)).font(.caption) } }
+                                VStack(alignment: .leading, spacing: 4) { Text(t.title); Text(DUORelease.soloOnly ? "Sur cet iPhone" : store.assigneeLabel(t.assignee)).font(.caption).foregroundStyle(Color("SecondaryReadable")); if let due = t.due { Text(due.formatted(date: .abbreviated, time: .shortened)).font(.caption) }; if let done = t.completed { Text("Terminée " + done.formatted(date: .abbreviated, time: .shortened)).font(.caption) } }
                             }
                         }.contextMenu { if !history { Button("Me rappeler à l’échéance") { Task { await store.remind(row) } } } }
                         .swipeActions { Button("Supprimer", role: .destructive) { store.remove(row) } }
