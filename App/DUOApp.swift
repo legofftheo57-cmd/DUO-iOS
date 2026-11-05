@@ -45,6 +45,7 @@ struct RootView: View {
             nav("Tâches") { HouseholdView() }.tabItem { Label("Tâches", systemImage: "checkmark.circle") }
             nav("Courses") { ShoppingView() }.tabItem { Label("Courses", systemImage: "basket") }
             nav("Planning") { PlanningView() }.tabItem { Label("Planning", systemImage: "calendar") }
+            nav("Nous") { CoupleIdeasView() }.tabItem { Label("Nous", systemImage: "heart") }
         }
         .disabled(store.syncing || !store.ready)
         .overlay { if store.syncing { ProgressView("Synchronisation…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) } }
@@ -191,6 +192,26 @@ struct HomeView: View {
                         }
                     }
                     .duoPanel()
+
+
+                    NavigationLink { CoupleIdeasView().navigationTitle("Nous deux") } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "heart.text.square.fill")
+                                .font(.title2)
+                                .foregroundStyle(Color("Accent"))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Un moment à deux").font(.headline)
+                                Text("3 idées nouvelles chaque jour, sans pression.")
+                                    .font(.caption).foregroundStyle(Color("SecondaryReadable"))
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption)
+                        }
+                        .foregroundStyle(Color("Text"))
+                        .duoPanel()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("openCoupleIdeas")
 
                     sectionHeading("Actions rapides", detail: "En un geste")
                     HStack(spacing: 10) {
@@ -350,5 +371,129 @@ struct HomeView: View {
             .font(.subheadline)
             .foregroundStyle(Color("SecondaryReadable"))
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+
+private struct CoupleIdea {
+    let title: String
+    let detail: String
+    let minutes: Int
+    let symbol: String
+    let category: String
+}
+
+struct CoupleIdeasView: View {
+    @AppStorage("duo.couple.completedDay") private var completedDay = ""
+    @AppStorage("duo.couple.completedIndices") private var completedIndices = ""
+    @State private var selectedDate = Date()
+
+    // Curated, offline, free suggestions: no accounts, analytics or personal data.
+    private let ideas: [CoupleIdea] = [
+        .init(title: "Le meilleur moment", detail: "Racontez chacun le meilleur moment de votre journée et pourquoi il vous a marqué.", minutes: 5, symbol: "sun.max", category: "Connexion"),
+        .init(title: "Une gratitude précise", detail: "Remerciez l'autre pour un geste concret de cette semaine.", minutes: 5, symbol: "heart", category: "Bienveillance"),
+        .init(title: "Balade sans écran", detail: "Marchez ensemble, téléphones rangés, et choisissez chacun une question à poser.", minutes: 20, symbol: "figure.walk", category: "Sortie"),
+        .init(title: "Cuisiner à quatre mains", detail: "Préparez un repas simple ensemble en vous répartissant les étapes.", minutes: 30, symbol: "fork.knife", category: "À la maison"),
+        .init(title: "Notre prochain mini-rêve", detail: "Imaginez une activité réalisable ce mois-ci, avec un budget choisi ensemble.", minutes: 15, symbol: "sparkles", category: "Projets"),
+        .init(title: "La question inattendue", detail: "Quel endroit aimerais-tu me faire découvrir, et pourquoi ?", minutes: 10, symbol: "questionmark.bubble", category: "Discussion"),
+        .init(title: "Une chanson, une histoire", detail: "Écoutez chacun une chanson et racontez le souvenir qu'elle évoque.", minutes: 15, symbol: "music.note", category: "Découverte"),
+        .init(title: "Un vrai compliment", detail: "Dites chacun une qualité que vous admirez chez l'autre, avec un exemple.", minutes: 5, symbol: "star", category: "Bienveillance"),
+        .init(title: "Un petit service", detail: "Demandez : « Qu'est-ce qui te soulagerait aujourd'hui ? » Puis choisissez un geste réalisable.", minutes: 10, symbol: "hands.sparkles", category: "Entraide"),
+        .init(title: "Soirée jeux express", detail: "Choisissez un jeu de cartes ou de société et jouez sans chercher à gagner à tout prix.", minutes: 25, symbol: "gamecontroller", category: "Détente"),
+        .init(title: "Le souvenir préféré", detail: "Racontez votre souvenir préféré ensemble et ce que vous aimeriez revivre.", minutes: 10, symbol: "photo", category: "Connexion"),
+        .init(title: "Le rendez-vous gratuit", detail: "Organisez un petit rendez-vous sans achat : coucher de soleil, pique-nique maison ou promenade.", minutes: 20, symbol: "leaf", category: "Sortie"),
+        .init(title: "Écouter sans réparer", detail: "Pendant cinq minutes chacun, écoutez sans interrompre ni proposer de solution, sauf demande.", minutes: 10, symbol: "ear", category: "Communication"),
+        .init(title: "Notre recette signature", detail: "Inventez un nom pour un plat que vous aimez et planifiez quand le refaire.", minutes: 10, symbol: "birthday.cake", category: "À la maison"),
+        .init(title: "La boîte à idées", detail: "Notez chacun trois activités à faire à deux, puis choisissez-en une.", minutes: 15, symbol: "tray.full", category: "Projets"),
+        .init(title: "Une photo du quotidien", detail: "Prenez une photo d'un moment ordinaire que vous aurez plaisir à revoir.", minutes: 5, symbol: "camera", category: "Souvenirs"),
+        .init(title: "Ce qui me rassure", detail: "Partagez chacun une petite attention qui vous fait vous sentir soutenu.", minutes: 10, symbol: "shield.lefthalf.filled", category: "Communication"),
+        .init(title: "Découverte à l'aveugle", detail: "Faites goûter à l'autre trois aliments familiers, en respectant ses préférences.", minutes: 15, symbol: "carrot", category: "Jeu"),
+        .init(title: "Notre dimanche idéal", detail: "Décrivez votre dimanche parfait, puis trouvez un élément simple à réaliser.", minutes: 10, symbol: "calendar", category: "Projets"),
+        .init(title: "Mini-défi créatif", detail: "Dessinez chacun l'autre en deux minutes et échangez vos œuvres avec humour.", minutes: 10, symbol: "pencil.tip", category: "Jeu"),
+        .init(title: "Un point positif", detail: "Dites ce qui fonctionne bien dans votre quotidien à deux et que vous souhaitez préserver.", minutes: 10, symbol: "checkmark.seal", category: "Communication"),
+        .init(title: "Pause douceur", detail: "Prenez un thé ou une boisson ensemble, sans écran, sans obligation de parler.", minutes: 15, symbol: "cup.and.saucer", category: "Détente"),
+        .init(title: "Notre liste de découvertes", detail: "Choisissez un lieu proche à visiter et une date possible, sans engagement.", minutes: 10, symbol: "map", category: "Sortie"),
+        .init(title: "Apprendre quelque chose", detail: "Montrez à l'autre une petite compétence ou une astuce que vous aimez.", minutes: 15, symbol: "lightbulb", category: "Découverte"),
+        .init(title: "Une question sur l'enfance", detail: "Quel jeu ou rituel aimais-tu particulièrement quand tu étais petit ?", minutes: 10, symbol: "bubble.left.and.bubble.right", category: "Discussion"),
+        .init(title: "Le partage des tâches", detail: "Choisissez une tâche qui pèse sur l'un de vous et trouvez une répartition plus confortable.", minutes: 10, symbol: "checklist", category: "Entraide"),
+        .init(title: "Notre petit rituel", detail: "Inventez un rituel de deux minutes qui vous ferait plaisir chaque semaine.", minutes: 10, symbol: "heart.circle", category: "Connexion"),
+        .init(title: "Le bilan sans jugement", detail: "Chacun partage une chose appréciée cette semaine et une petite amélioration souhaitée.", minutes: 15, symbol: "person.2", category: "Communication")
+    ]
+
+    private var dayKey: String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: selectedDate)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+    private var dayNumber: Int {
+        Calendar.current.ordinality(of: .day, in: .era, for: selectedDate) ?? 0
+    }
+    private var todaysIndices: [Int] {
+        let base = (dayNumber * 3) % ideas.count
+        return (0..<3).map { (base + $0) % ideas.count }
+    }
+    private var done: Set<Int> {
+        guard completedDay == dayKey else { return [] }
+        return Set(completedIndices.split(separator: ",").compactMap { Int($0) })
+    }
+    private func toggle(_ index: Int) {
+        var updated = done
+        if updated.contains(index) { updated.remove(index) } else { updated.insert(index) }
+        completedDay = dayKey
+        completedIndices = updated.sorted().map(String.init).joined(separator: ",")
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("NOTRE MOMENT", systemImage: "heart.fill")
+                        .font(.caption.bold()).foregroundStyle(Color("Accent"))
+                    Text("Des idées pour nous deux").font(.title2.bold())
+                    Text("Trois propositions par jour. Choisissez ce qui vous fait envie, sans obligation.")
+                        .font(.subheadline).foregroundStyle(Color("SecondaryReadable"))
+                    Text(selectedDate.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                        .font(.caption).foregroundStyle(Color("SecondaryReadable"))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .duoPanel()
+
+                ForEach(todaysIndices, id: \.self) { index in
+                    let idea = ideas[index]
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Label(idea.category, systemImage: idea.symbol)
+                                .font(.caption.weight(.semibold)).foregroundStyle(Color("Accent"))
+                            Spacer()
+                            Label("\(idea.minutes) min", systemImage: "clock")
+                                .font(.caption).foregroundStyle(Color("SecondaryReadable"))
+                        }
+                        Text(idea.title).font(.headline)
+                        Text(idea.detail).font(.subheadline)
+                            .foregroundStyle(Color("SecondaryReadable"))
+                        Button {
+                            toggle(index)
+                        } label: {
+                            Label(done.contains(index) ? "Fait ensemble" : "On l'a fait !",
+                                  systemImage: done.contains(index) ? "checkmark.circle.fill" : "circle")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("coupleIdeaToggle\(index)")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .duoPanel()
+                }
+                Text("Les idées changent chaque jour sur cet iPhone. Vos choix restent privés et locaux.")
+                    .font(.caption).foregroundStyle(Color("SecondaryReadable"))
+            }
+            .padding(18)
+        }
+        .background(Color("Background"))
+        .navigationTitle("Nous deux")
+        .onAppear { selectedDate = Date() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            selectedDate = Date()
+        }
+        .accessibilityIdentifier("coupleIdeasScreen")
     }
 }
