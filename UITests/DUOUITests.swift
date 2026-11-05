@@ -212,3 +212,20 @@ extension DUOUITests {
         XCTAssertGreaterThan(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Cocher ")).count, 0)
     }
 }
+
+
+extension DUOUITests {
+    func testCoupleLayoutAndReachableActivities() {
+        app.tabBars.buttons["Nous"].tap()
+        XCTAssertTrue(app.navigationBars["Nous deux"].waitForExistence(timeout: 5))
+        let buttons = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "coupleIdeaToggle"))
+        XCTAssertEqual(buttons.count, 3)
+        let identifiers = buttons.allElementsBoundByIndex.map(\.identifier)
+        let top = XCTAttachment(screenshot: app.screenshot()); top.name = "Nous-haut"; top.lifetime = .keepAlways; add(top)
+        for identifier in identifiers {
+            let button = app.buttons[identifier]
+            reveal(button); XCTAssertTrue(button.isHittable)
+        }
+        let bottom = XCTAttachment(screenshot: app.screenshot()); bottom.name = "Nous-bas"; bottom.lifetime = .keepAlways; add(bottom)
+    }
+}

@@ -1,3 +1,6 @@
 Validation du 5 novembre 2026 autorisée par la mission DUO iOS finalisation et installation.
 Inclut Nous deux, correction du parcours historique, restauration avec copie de sécurité,
 tests de persistance et parcours utilisateur. Une seule compilation regroupée.
+
+Correctif après échec réel du test DST : rotation par date civile locale, indépendante des heures.
+Contrôle ciblé de Nous sur iPhone SE avec le build déjà compilé.

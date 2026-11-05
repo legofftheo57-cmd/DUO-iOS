@@ -146,7 +146,13 @@ public enum CoupleSchedule {
     }
     public static func indices(on date: Date, count: Int, calendar: Calendar = .current) -> [Int] {
         guard count > 0 else { return [] }
-        let day = calendar.ordinality(of: .day, in: .era, for: date) ?? 0
+        // Convert the local civil date to midnight UTC. Calendar ordinality in
+        // an era can count partial 24-hour periods across historical/DST offsets.
+        var civil = calendar
+        civil.timeZone = TimeZone(secondsFromGMT: 0)!
+        let components = calendar.dateComponents([.era, .year, .month, .day], from: date)
+        guard let midnight = civil.date(from: components) else { return [] }
+        let day = Int(floor(midnight.timeIntervalSince1970 / 86400))
         let base = ((day * 3) % count + count) % count
         return (0..<min(3, count)).map { (base + $0) % count }
     }

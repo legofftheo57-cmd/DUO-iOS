@@ -20,6 +20,8 @@ import UserNotifications
                 snapshot.coupleDay = day
                 snapshot.coupleCompleted = UserDefaults.standard.string(forKey: "duo.couple.completedIndices", default: "").split(separator: ",").compactMap { Int($0) }
                 try local.write(snapshot)
+                UserDefaults.standard.removeObject(forKey: "duo.couple.completedDay")
+                UserDefaults.standard.removeObject(forKey: "duo.couple.completedIndices")
             } }
         catch { self.error = error.localizedDescription }
         // A saved session is not used to send local data. Reconnection selects an isolated user cache.
