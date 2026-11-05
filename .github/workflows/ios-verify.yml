@@ -2,6 +2,12 @@ name: DUO - verification iOS (manuel)
 
 # Manual only: private macOS runner time consumes included GitHub Actions credits.
 on:
+  # One user-authorized retry of DUO Solo after hosted macOS runner allocation failed.
+  push:
+    branches:
+      - work/solo-iphone-install-20261105
+    paths:
+      - Docs/duo-solo-intel-build-request-20261105.txt
   workflow_dispatch:
     inputs:
       include_ui_tests:
@@ -19,7 +25,7 @@ concurrency:
 jobs:
   ios-tests:
     name: Swift Core et compilation iOS
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
