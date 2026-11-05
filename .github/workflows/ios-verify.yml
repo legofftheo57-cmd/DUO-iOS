@@ -31,7 +31,7 @@ jobs:
           xcrun simctl list devices available
       - name: Tests du noyau et compilation simulateur
         env:
-          DUO_RUN_UI_TESTS: ${{ inputs.include_ui_tests && '1' || '0' }}
+          DUO_RUN_UI_TESTS: '0'
         run: bash Scripts/check-macos.sh
       - name: Compiler le binaire pour iPhone (sans signature)
         if: ${{ github.ref_name == 'work/solo-iphone-install-20261105' }}
@@ -57,6 +57,17 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      - name: Parcours iPhone sur simulateur (tests UI)
+        if: ${{ inputs.include_ui_tests || github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          DUO_SIMULATOR_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for runtime,devices in d["devices"].items() if "iOS" in runtime for x in devices if "iPhone" in x["name"]))')"
+          xcodebuild -project DUO.xcodeproj -scheme DUO \
+            -destination "platform=iOS Simulator,id=$DUO_SIMULATOR_ID" \
+            -derivedDataPath TestResults/DerivedData \
+            -resultBundlePath TestResults/DUO-UI.xcresult \
+            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES \
+            test 2>&1 | tee TestResults/ui.log
       - name: Rapports de diagnostic (journaux uniquement)
         if: always()
         uses: actions/upload-artifact@v4
