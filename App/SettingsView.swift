@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import DUOCore
 
 struct SettingsView: View {
@@ -9,6 +10,8 @@ struct SettingsView: View {
     @State private var email = ""; @State private var password = ""; @State private var invitation = ""; @State private var token: String?
     @State private var confirmDisconnect = false
     @State private var exportURL: URL?; @State private var deletionPhrase = ""; @State private var confirmDeletion = false
+    @State private var showRestorePicker = false; @State private var confirmRestore = false
+    @State private var stagedBackup: Snapshot?
     @State private var inviteURL: URL?; @State private var confirmRevocation = false; @State private var recoveryMode = false; @State private var recoveryCode = ""; @State private var recoveryPassword = ""
     var body: some View {
         Form {
@@ -134,6 +137,15 @@ struct SettingsView: View {
                 if let exportURL {
                     ShareLink(item: exportURL) { Label("Enregistrer ou partager l’export", systemImage: "square.and.arrow.up") }
                 }
+                if DUORelease.soloOnly {
+                    Button {
+                        showRestorePicker = true
+                    } label: {
+                        Label("Restaurer une sauvegarde DUO", systemImage: "arrow.counterclockwise.icloud")
+                    }
+                    Text("La restauration remplace toutes les données actuelles. Une confirmation sera demandée avant toute modification.")
+                        .font(.caption)
+                }
                 if store.backend?.session != nil {
                     Text("Suppression irréversible du compte en ligne : vos données privées sont effacées ; vos éléments partagés dont DUO connaît l’auteur sont retirés chez votre partenaire. Les données créées par votre partenaire sont conservées. Les appareils hors ligne ne sont mis à jour qu’à leur reconnexion.").font(.caption)
                     TextField("Tapez SUPPRIMER", text: $deletionPhrase).textInputAutocapitalization(.characters).autocorrectionDisabled()
@@ -150,6 +162,29 @@ struct SettingsView: View {
                         .font(.caption)
                 }
             }
+        }.fileImporter(isPresented: $showRestorePicker, allowedContentTypes: [.json]) { result in
+            switch result {
+            case .success(let url):
+                do {
+                    stagedBackup = try store.previewLocalImport(from: url)
+                    confirmRestore = true
+                } catch {
+                    store.error = "Sauvegarde non restaurée : " + error.localizedDescription
+                }
+            case .failure(let error):
+                store.error = "Impossible d’ouvrir le fichier : " + error.localizedDescription
+            }
+        }.confirmationDialog("Remplacer les données sur cet iPhone ?", isPresented: $confirmRestore, titleVisibility: .visible) {
+            Button("Remplacer par la sauvegarde", role: .destructive) {
+                if let stagedBackup {
+                    do { try store.restoreLocalImport(stagedBackup) }
+                    catch { store.error = "Restauration impossible : " + error.localizedDescription }
+                }
+                stagedBackup = nil
+            }
+            Button("Annuler", role: .cancel) { stagedBackup = nil }
+        } message: {
+            Text("La sauvegarde contient \(stagedBackup?.records.count ?? 0) éléments, suppressions historiques comprises. Les données actuelles seront remplacées.")
         }.onAppear {
             if let token = store.pendingInvitation { invitation = token }
         }.onChange(of: store.pendingInvitation) { _, newToken in
