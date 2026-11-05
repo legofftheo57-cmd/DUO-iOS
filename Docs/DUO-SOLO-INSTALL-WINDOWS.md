@@ -22,13 +22,25 @@ L’IPA est **non signé**. Il ne peut pas s’installer en le touchant depuis F
 
 Sideloadly est un logiciel tiers, distinct d’Apple. Le processus utilise la signature personnelle de développement sans jailbreak ; sa réussite sur ton PC et ton iPhone reste à vérifier physiquement.
 
-## Renouvellement tous les sept jours
+## Renouvellement automatique (à configurer lors de la première installation)
 
-Les profils gratuits Apple expirent après sept jours et le nombre d’apps signées gratuitement est limité à trois par appareil. Renouveler DUO avant expiration, avec le même compte Apple et le même identifiant d’application, **en installant par-dessus sans supprimer DUO**.
+Il ne faut **pas recompiler DUO sur macOS tous les sept jours** : c’est le profil gratuit de signature Apple qui expire après sept jours. Apple limite également le compte gratuit à trois apps sideloadées par appareil. Le même IPA peut être re-signé automatiquement, sans utiliser GitHub Actions.
 
-Le renouvellement automatique de Sideloadly nécessite son service actif sur le PC et l’iPhone accessible par USB ou par Wi-Fi préalablement configuré. Pour le Wi-Fi : connecter d’abord en USB, activer la synchronisation Wi-Fi dans iTunes puis garder PC et iPhone sur le même réseau. Un PC éteint ne peut pas renouveler l’app.
+**À faire une fois sur Windows lors de l'installation initiale :**
 
-Avant chaque mise à jour ou renouvellement : **Réglages de DUO → Confidentialité → Préparer une copie de mes données → Enregistrer ou partager l’export → Enregistrer dans Fichiers**. Garder aussi une copie hors de l’app. Si la signature expire, renouveler sans désinstaller.
+1. Installer Sideloadly depuis https://sideloadly.io/ et les composants Apple nécessaires (versions web d’iTunes/iCloud recommandées par l’éditeur). Connecter l’iPhone en USB, le déverrouiller et lui faire faire confiance au PC.
+2. Dans **iTunes → iPhone → Résumé → Options**, activer **Synchroniser avec cet iPhone en Wi-Fi**, puis synchroniser. Vérifier que l’iPhone réapparaît dans Sideloadly sur le même réseau local, après avoir retiré le câble. Si besoin, ouvrir iTunes et réveiller l’écran de l’iPhone.
+3. Ajouter **DUO-solo-unsigned.ipa** à Sideloadly, conserver le même compte Apple et l’identifiant d’application attribué. Activer **Automatic App Refreshing / Automatically refresh** lors du sideload (vérifier l’option même si elle est généralement activée par défaut).
+4. Installer DUO, vérifier qu’il s’ouvre, puis vérifier que **Sideloadly Daemon** est actif sur Windows et que DUO est bien inscrit au rafraîchissement automatique. Au prochain démarrage de Windows, vérifier que le daemon s’exécute et reconnaît encore l’iPhone via Wi-Fi.
+5. **Ne pas désinstaller DUO** lors des renouvellements : signer par-dessus avec le **même compte Apple et le même identifiant d’application** préserve normalement les données. Faire malgré tout des exports JSON réguliers vers Fichiers.
+
+**Conditions de fonctionnement :** le PC doit être allumé avec le service Sideloadly actif ; l’iPhone doit pouvoir être détecté par USB ou sur le même Wi-Fi local. Le daemon tente alors de renouveler les applications proches de l’expiration. La réussite n’est pas garantie si le PC est éteint, si la connexion échoue ou si Apple redemande une authentification ; l’interface du logiciel peut dans ces cas exiger une intervention. Cette automatisation dépend de Sideloadly, pas d’une tâche planifiée ChatGPT, et ne peut être activée depuis GitHub seulement.
+
+**En cas d’échec :** connecter l’iPhone en USB, ouvrir Sideloadly, vérifier l’état du daemon puis relancer la signature du même IPA avec le même compte Apple et le même identifiant d’application. Ne pas supprimer l’application ; si un nouveau code Apple est demandé, le saisir toi-même sur ton ordinateur, jamais dans un chat.
+
+**Mises à jour du code :** contrairement au simple rafraîchissement de signature, installer une nouvelle version nécessite de construire un nouvel IPA et de le charger manuellement dans Sideloadly (ou d’organiser un flux de mise à jour spécifique). Cette opération ne se fait pas automatiquement par le seul daemon.
+
+Avant une restauration ou une opération sensible : **Réglages de DUO → Confidentialité → Préparer une copie de mes données → Enregistrer ou partager l’export → Enregistrer dans Fichiers**. Conserver la sauvegarde hors de DUO.
 
 ## Données et restauration
 
