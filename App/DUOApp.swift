@@ -31,10 +31,9 @@ struct RootView: View {
         @Bindable var store = store
         TabView {
             nav("Accueil") { HomeView() }.tabItem { Label("Accueil", systemImage: "house") }
-            nav("Cuisine") { KitchenView() }.tabItem { Label("Cuisine", systemImage: "fork.knife") }
+            nav("Tâches") { HouseholdView() }.tabItem { Label("Tâches", systemImage: "checkmark.circle") }
             nav("Courses") { ShoppingView() }.tabItem { Label("Courses", systemImage: "basket") }
             nav("Planning") { PlanningView() }.tabItem { Label("Planning", systemImage: "calendar") }
-            nav("Tâches") { HouseholdView() }.tabItem { Label("Tâches", systemImage: "checkmark.circle") }
         }
         .disabled(store.syncing || !store.ready)
         .overlay { if store.syncing { ProgressView("Synchronisation…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) } }
@@ -73,7 +72,6 @@ struct HomeView: View {
     @Environment(AppStore.self) private var store
     @State private var addTask = false
     @State private var addShopping = false
-    @State private var addFood = false
     @State private var addEvent = false
 
     private var pendingTasks: [Record] {
@@ -123,26 +121,17 @@ struct HomeView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 26) {
                     welcome(context.date)
-                    HStack(spacing: 12) {
-                        statTile("\(pendingTasks.count)", label: "Tâches ouvertes", symbol: "checkmark.circle")
-                        statTile("\(pendingShopping.count)", label: "À acheter", symbol: "basket")
-                    }
-                    sectionHeading("Un geste, c’est fait", detail: "Vos raccourcis")
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        quickAction("Une tâche", symbol: "checkmark.circle.badge.plus") { addTask = true }
-                        quickAction("Une course", symbol: "basket.badge.plus") { addShopping = true }
-                        quickAction("Un aliment", symbol: "carrot") { addFood = true }
-                        quickAction("Un rendez-vous", symbol: "calendar.badge.plus") { addEvent = true }
-                    }
 
-                    sectionHeading("À faire aujourd’hui", detail: "\(dueTasks(on: context.date).count) à voir")
+                    // Calm hierarchy: the next concrete action comes before dashboard metrics.
+                    sectionHeading("Aujourd’hui", detail: "\(dueTasks(on: context.date).count) tâche(s)")
+                    
                     VStack(alignment: .leading, spacing: 0) {
                         if dueTasks(on: context.date).isEmpty {
                             emptyRow("Rien d’urgent. Profitez de ce temps libre.", symbol: "checkmark.seal")
                         }
-                        ForEach(dueTasks(on: context.date).prefix(4)) { row in
+                        ForEach(dueTasks(on: context.date).prefix(3)) { row in
                             if case .task(let task) = row.payload {
                                 HStack(spacing: 14) {
                                     Button { store.toggle(row) } label: {
@@ -165,7 +154,7 @@ struct HomeView: View {
                                     Spacer(minLength: 0)
                                 }
                                 .padding(.vertical, 5)
-                                if row.id != dueTasks(on: context.date).prefix(4).last?.id {
+                                if row.id != dueTasks(on: context.date).prefix(3).last?.id {
                                     Divider().opacity(0.35)
                                 }
                             }
@@ -179,17 +168,36 @@ struct HomeView: View {
                     }
                     .duoPanel()
 
+                    sectionHeading("Actions rapides", detail: "En un geste")
+                    HStack(spacing: 10) {
+                        quickAction("Tâche", symbol: "checkmark.circle.badge.plus") { addTask = true }
+                        quickAction("Course", symbol: "basket.badge.plus") { addShopping = true }
+                        NavigationLink { KitchenView() } label: {
+                            quickActionAppearance("Cuisine", symbol: "fork.knife")
+                        }
+                        .buttonStyle(.plain)
+                        quickAction("RDV", symbol: "calendar.badge.plus") { addEvent = true }
+                    }
+
+                    HStack(spacing: 18) {
+                        Label("\(pendingTasks.count) tâche(s) ouverte(s)", systemImage: "checkmark.circle")
+                        Label("\(pendingShopping.count) à acheter", systemImage: "basket")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Color("SecondaryReadable"))
+                    .accessibilityElement(children: .combine)
+
                     if !todaysEvents(on: context.date).isEmpty || !todaysMeals(on: context.date).isEmpty {
                         sectionHeading("Mon programme", detail: "Aujourd’hui")
                         VStack(alignment: .leading, spacing: 12) {
-                            ForEach(todaysEvents(on: context.date)) { row in
+                            ForEach(todaysEvents(on: context.date).prefix(2)) { row in
                                 if case .event(let event) = row.payload {
                                     Label(event.start.formatted(date: .omitted, time: .shortened) + " · " + event.title,
                                           systemImage: event.sport ? "figure.run" : "calendar")
                                         .font(.subheadline)
                                 }
                             }
-                            ForEach(todaysMeals(on: context.date)) { row in
+                            ForEach(todaysMeals(on: context.date).prefix(1)) { row in
                                 if case .meal(let meal) = row.payload,
                                    let recipe = Catalog.recipes.first(where: { $0.id == meal.recipeID }) {
                                     Label(recipe.title, systemImage: "fork.knife")
@@ -197,6 +205,10 @@ struct HomeView: View {
                                 }
                             }
                         }
+                            NavigationLink { PlanningView() } label: {
+                                Label("Ouvrir mon planning", systemImage: "arrow.right")
+                                    .font(.subheadline.weight(.semibold))
+                            }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .duoPanel()
                     }
@@ -246,7 +258,6 @@ struct HomeView: View {
         }
         .sheet(isPresented: $addTask) { NavigationStack { ItemEditor(kind: "task") } }
         .sheet(isPresented: $addShopping) { NavigationStack { ItemEditor(kind: "shopping") } }
-        .sheet(isPresented: $addFood) { NavigationStack { ItemEditor(kind: "food") } }
         .sheet(isPresented: $addEvent) { NavigationStack { ItemEditor(kind: "event") } }
     }
 
@@ -277,18 +288,6 @@ struct HomeView: View {
         )
     }
 
-    private func statTile(_ number: String, label: String, symbol: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: symbol).foregroundStyle(Color("Accent"))
-            Text(number).font(.title.bold()).monospacedDigit()
-            Text(label).font(.caption).foregroundStyle(Color("SecondaryReadable"))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .foregroundStyle(Color("Text"))
-        .duoPanel()
-        .accessibilityElement(children: .combine)
-    }
-
     private func sectionHeading(_ title: String, detail: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title).font(.title3.bold()).foregroundStyle(Color("Text"))
@@ -298,16 +297,28 @@ struct HomeView: View {
     }
 
     private func quickAction(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: symbol).foregroundStyle(Color("Accent"))
-                Text(title).font(.subheadline.weight(.medium)).foregroundStyle(Color("Text"))
-                Spacer(minLength: 0)
-            }
-            .frame(minHeight: 44)
-            .duoPanel()
+        Button(action: action) { quickActionAppearance(title, symbol: symbol) }
+            .buttonStyle(.plain)
+    }
+
+    private func quickActionAppearance(_ title: String, symbol: String) -> some View {
+        VStack(spacing: 9) {
+            Image(systemName: symbol)
+                .font(.title3.weight(.medium))
+                .foregroundStyle(Color("Accent"))
+                .frame(height: 26)
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color("Text"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, minHeight: 60)
+        .padding(.vertical, 12)
+        .background(Color("Surface").opacity(0.72), in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color("Ice").opacity(0.25), lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 20))
+        .accessibilityElement(children: .combine)
     }
 
     private func emptyRow(_ message: String, symbol: String) -> some View {
