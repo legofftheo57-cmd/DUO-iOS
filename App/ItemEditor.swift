@@ -25,7 +25,11 @@ struct ItemEditor: View {
                 Text("Utilisez le même nom que dans les recettes : carotte, riz, œufs… Les variantes de produits ne sont pas substituées automatiquement.").font(.caption)
             }
             if kind == "task" {
-                Picker("Attribution", selection: $assignee) { Text("Ensemble").tag("Ensemble"); Text("Moi").tag(store.snapshot.userID.uuidString); Text("Mon partenaire").tag("partner-of:" + store.snapshot.userID.uuidString) }
+                if DUORelease.soloOnly {
+                    Label("Tâche personnelle", systemImage: "iphone").font(.subheadline)
+                } else {
+                    Picker("Attribution", selection: $assignee) { Text("Ensemble").tag("Ensemble"); Text("Moi").tag(store.snapshot.userID.uuidString); Text("Mon partenaire").tag("partner-of:" + store.snapshot.userID.uuidString) }
+                }
                 Toggle("Échéance", isOn: $hasDate)
                 if hasDate { DatePicker("À faire avant", selection: $start) }
                 Stepper(repeatDays == 0 ? "Sans récurrence" : "Tous les \(repeatDays) jour(s)", value: $repeatDays, in: 0...365)
@@ -37,10 +41,28 @@ struct ItemEditor: View {
                 Toggle("Privé", isOn: $isPrivate).disabled(row != nil)
                 Text(row == nil ? "Les séances et habitudes sont privées par défaut. Désactivez seulement si vous souhaitez les partager." : "La visibilité est fixée à la création pour protéger les données déjà partagées.").font(.caption)
             }
-            Button("Enregistrer") { save() }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveItem")
-        }.navigationTitle(row == nil ? "Ajouter" : "Modifier")
+            Button { save() } label: {
+                Text(row == nil ? "Ajouter" : "Enregistrer les modifications")
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityIdentifier("saveItem")
+        }.navigationTitle(editorTitle)
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } } }
         .onAppear { load() }
+    }
+    private var editorTitle: String {
+        if row != nil { return "Modifier" }
+        switch kind {
+        case "food": return "Nouvel aliment"
+        case "shopping": return "Nouvel article"
+        case "task": return "Nouvelle tâche"
+        case "event": return "Nouveau rendez-vous"
+        case "sport": return "Nouvelle séance"
+        case "habit": return "Nouvelle habitude"
+        default: return "Ajouter"
+        }
     }
     private func load() {
         guard !loaded else { return }; loaded = true; isPrivate = kind == "sport" || kind == "habit"
@@ -64,7 +86,8 @@ struct ItemEditor: View {
             var s = Shopping(ingredient: Ingredient(name, quantity, unit)); s.category = category
             if case .shopping(let old) = row?.payload { s.checked = old.checked; s.generated = false }; payload = .shopping(s)
         case "task":
-            var t = HouseTask(title: name, assignee: assignee, due: hasDate ? start : nil, repeatDays: repeatDays)
+            let ownerLabel = DUORelease.soloOnly && row == nil ? store.snapshot.userID.uuidString : assignee
+            var t = HouseTask(title: name, assignee: ownerLabel, due: hasDate ? start : nil, repeatDays: repeatDays)
             if case .task(let old) = row?.payload { t.completed = old.completed }; payload = .task(t)
         case "habit":
             var h = Habit(title: name, weeklyGoal: goal); if case .habit(let old) = row?.payload { h.completions = old.completions }; payload = .habit(h)
