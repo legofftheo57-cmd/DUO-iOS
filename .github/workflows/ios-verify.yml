@@ -9,12 +9,6 @@ on:
         type: boolean
         default: false
         required: true
-      build_solo_ipa:
-        description: "Compiler un IPA iPhone non signé (sans distribution ni compte Apple payant)"
-        type: boolean
-        default: false
-        required: true
-
 permissions:
   contents: read
 
@@ -49,7 +43,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Compiler le binaire pour iPhone (sans signature)
-        if: ${{ inputs.build_solo_ipa }}
+        if: ${{ github.ref_name == 'work/solo-iphone-install-20261105' }}
         run: |
           set -euo pipefail
           xcodebuild -project DUO.xcodeproj -scheme DUO -configuration Release \
@@ -64,7 +58,7 @@ jobs:
           (cd TestResults/ipa && zip -qr ../DUO-solo-unsigned.ipa Payload)
           unzip -t TestResults/DUO-solo-unsigned.ipa
       - name: IPA solo pour signature personnelle sur Windows
-        if: ${{ inputs.build_solo_ipa }}
+        if: ${{ github.ref_name == 'work/solo-iphone-install-20261105' }}
         uses: actions/upload-artifact@v4
         with:
           name: DUO-solo-unsigned-ipa
