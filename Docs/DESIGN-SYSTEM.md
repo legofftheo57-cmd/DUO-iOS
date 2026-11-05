@@ -24,3 +24,17 @@ Icône originale dessinée par code : deux formes reliées en graphite/glacier, 
 Les matériaux SwiftUI standard sont utilisés ; Reduce Transparency reçoit un fond opaque sur les panneaux. Les contrôles standards bénéficient du style natif Liquid Glass sur les versions compatibles, sans appeler une API iOS 26 sur iOS 17. Pas d’animation personnalisée imposée ni de vibration automatique ajoutée : les transitions et interactions restent natives. Vérification Reduce Motion indispensable sur simulateur/appareil.
 
 Le mode système renvoie `nil` à `preferredColorScheme`. Le mode horaire travaille en minutes locales, gère les intervalles traversant minuit et est recalculé toutes les 30 secondes lorsque l’application est affichée. Horaires identiques : mode clair. Le thème système et les réglages locaux persistent via AppStorage.
+
+## Direction validée — 5 novembre 2026
+
+Le propriétaire a retenu **le concept A / nº 1, Graphite & Ice**, mais considère la première maquette un peu trop dense. La version à livrer doit donc **conserver strictement la palette, l'ambiance sombre premium et les panneaux translucides** tout en retrouvant de l'air.
+
+Décisions d'interface :
+- **Quatre onglets fixes** : Accueil, Tâches, Courses, Planning ; la cuisine reste à un geste depuis l'accueil et la suggestion de repas.
+- **Accueil organisé dans l'ordre d'utilité** : salutation, trois priorités maximum, actions rapides, indicateurs discrets, programme et idée de repas.
+- **Moins de blocs à l'écran** : métriques limitées, maximum trois tâches visibles sur l'accueil ; le détail est disponible dans les écrans dédiés.
+- **Plus d'espace et de contraste lisible** : espacement vertical plus généreux, icônes bleutées mesurées, libellés courts, cartes seulement pour les groupes cohérents.
+- **Pas de fonction fictive** : pas d'avatars artificiels de partenaires, pas de répartition réelle entre deux iPhone, pas d'indicateur de budget courses sans données de prix.
+- **Version solo d'abord** : toutes les données sur l'iPhone, sauvegarde JSON, aucune authentification ou synchronisation automatique.
+
+L'image conceptuelle est une **direction visuelle**, pas une capture d'écran d'une version compilée. L'itération de l'interface doit être validée par une nouvelle compilation après les changements, puis testée sur iPhone.
