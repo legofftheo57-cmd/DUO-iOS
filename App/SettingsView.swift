@@ -125,7 +125,9 @@ struct SettingsView: View {
             }
             }
             Section("Confidentialité") {
-                Text("Aucune publicité ni analyse d’usage. L’assistant local fonctionne sans API externe. Le bouton IA en ligne transmet uniquement la question saisie, après votre action explicite, si ce service optionnel est configuré. Les séances et habitudes sont privées par défaut. Aucun accès Santé, Contacts ou calendrier Apple.")
+                Text(DUORelease.soloOnly
+                    ? "Aucune publicité, aucun compte, aucune analyse d’usage et aucune transmission en ligne. Joe fonctionne localement. Aucun accès Santé, Contacts ou calendrier Apple."
+                    : "Aucune publicité ni analyse d’usage. L’assistant local fonctionne sans API externe. Le bouton IA en ligne transmet uniquement la question saisie, après votre action explicite, si ce service optionnel est configuré. Les séances et habitudes sont privées par défaut. Aucun accès Santé, Contacts ou calendrier Apple.")
                 Text(DUORelease.soloOnly
                     ? "Export local JSON, sans mot de passe : sauvegardez-le dans Fichiers avant toute désinstallation. Gardez la même application lors des renouvellements de signature."
                     : "Export local JSON, sans mots de passe ni jetons. Pour un compte synchronisé, lancez d’abord une synchronisation ; le fichier reflète ensuite les données visibles sur cet iPhone.")
