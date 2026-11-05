@@ -2,6 +2,12 @@ name: DUO - verification iOS (manuel)
 
 # Manual only: private macOS runner time consumes included GitHub Actions credits.
 on:
+  # Single retry after fixing compiler scope error detected in run 42084231575.
+  push:
+    branches:
+      - work/solo-iphone-install-20261105
+    paths:
+      - Docs/duo-solo-corrected-qa-request-20261105.txt
   workflow_dispatch:
     inputs:
       include_ui_tests:
