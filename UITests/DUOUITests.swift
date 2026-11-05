@@ -118,4 +118,25 @@ final class DUOUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Pâtes DUO sauvegarde"].waitForExistence(timeout: 5))
     }
 
+    func testCoupleIdeasTabAndCompletion() {
+        app.tabBars.buttons["Nous"].tap()
+        XCTAssertTrue(app.navigationBars["Nous"].waitForExistence(timeout: 5))
+        let buttons = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "coupleIdeaToggle"))
+        XCTAssertEqual(buttons.count, 3)
+        let first = buttons.element(boundBy: 0)
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        first.tap()
+        XCTAssertTrue(first.label.contains("Fait ensemble"))
+        first.tap()
+        XCTAssertTrue(first.label.contains("On l'a fait"))
+    }
+
+    func testCoupleIdeasFromHome() {
+        app.tabBars.buttons["Accueil"].tap()
+        let entry = app.buttons["openCoupleIdeas"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 5))
+        entry.tap()
+        XCTAssertTrue(app.navigationBars["Nous deux"].waitForExistence(timeout: 5))
+    }
+
 }
