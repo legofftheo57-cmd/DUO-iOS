@@ -153,7 +153,7 @@ struct HomeView: View {
                     sectionHeading("Aujourd’hui", detail: "\(dueTasks(on: date).count) tâche(s)")
                     VStack(alignment: .leading, spacing: 0) {
                         if dueTasks(on: date).isEmpty {
-                            emptyRow("Rien d’urgent. Profitez de ce temps libre.", symbol: "checkmark.seal")
+                            emptyRow(pendingTasks.isEmpty ? "Commence par ajouter ta première tâche." : "Rien d’urgent. Profite de ce temps libre.", symbol: pendingTasks.isEmpty ? "sparkles" : "checkmark.seal")
                         }
                         ForEach(dueTasks(on: date).prefix(3)) { row in
                             if case .task(let task) = row.payload {
