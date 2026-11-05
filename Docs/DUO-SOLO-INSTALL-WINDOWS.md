@@ -1,6 +1,6 @@
 # DUO Solo — installation sur un seul iPhone (Windows)
 
-État : **code préparé ; compilation iPhone et installation réelle non encore vérifiées**.
+État au 5 novembre 2026 : **premier IPA iPhone généré et 66 tests du noyau réussis le 5 novembre (run 42070149725)**. Depuis, l'interface choisie a été simplifiée (quatre onglets et Graphite & Ice sombre par défaut) et des fonctions locales ont été ajoutées. **Cette nouvelle version n'est pas encore recompilée ni installée sur un iPhone.** Le run 42075237183 n'a reçu aucun runner macOS et n'a donc exécuté aucun test.
 
 Objectif : une application native iOS hors ligne sur le seul iPhone du propriétaire. La synchronisation avec Lilou, les comptes et l'IA distante sont reportés.
 
@@ -17,7 +17,7 @@ Objectif : une application native iOS hors ligne sur le seul iPhone du propriét
 
 ## Étape 1 — Produire un IPA non signé
 
-La branche de livraison est **work/solo-iphone-install-20261105**.
+La branche de livraison est **work/solo-iphone-install-20261105**. Le concept retenu est Graphite & Ice aéré : fond sombre par défaut, quatre onglets Accueil / Tâches / Courses / Planning et cuisine accessible depuis l’accueil. Les tâches terminées peuvent être rouvertes depuis l’historique ; une occurrence récurrente modifiée n’est jamais effacée silencieusement.
 
 Dans GitHub, ouvrir **Actions → DUO - verification iOS (manuel) → Run workflow**.
 Sélectionner la branche ci-dessus et laisser include_ui_tests désactivé pour la première compilation. Le workflow détecte cette branche et produit automatiquement le paquet IPA si les validations réussissent.
