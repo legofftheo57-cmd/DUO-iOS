@@ -4,9 +4,9 @@ import DUOCore
 
 struct SettingsView: View {
     @Environment(AppStore.self) private var store; @Environment(\.dismiss) private var dismiss
-    @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("appearance") private var appearance = "dark"
     @AppStorage("nightStart") private var nightStart = 1200; @AppStorage("nightEnd") private var nightEnd = 420
-    @AppStorage("exclusions") private var exclusions = ""; @AppStorage("homePriority") private var homePriority = "auto"
+    @AppStorage("exclusions") private var exclusions = ""
     @State private var email = ""; @State private var password = ""; @State private var invitation = ""; @State private var token: String?
     @State private var confirmDisconnect = false
     @State private var exportURL: URL?; @State private var deletionPhrase = ""; @State private var confirmDeletion = false
@@ -22,7 +22,6 @@ struct SettingsView: View {
                     DatePicker("Fin de nuit", selection: timeBinding($nightEnd), displayedComponents: [.hourAndMinute])
                     if nightStart == nightEnd { Text("Horaires identiques : mode clair toute la journée.") }
                 }
-                Picker("Priorité de l’accueil", selection: $homePriority) { Text("Selon l’heure").tag("auto"); Text("Matin").tag("Matin"); Text("Après-midi").tag("Après-midi"); Text("Soir").tag("Soir") }
             }
             Section("Alimentation") {
                 TextField("Exclusions séparées par des virgules", text: $exclusions).textInputAutocapitalization(.never)
