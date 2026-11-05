@@ -9,7 +9,7 @@ enum DUORelease {
 
 @main @MainActor struct DUOApp: App {
     @State private var store = AppStore()
-    @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("appearance") private var appearance = "dark"
     @AppStorage("nightStart") private var nightStart = 1200
     @AppStorage("nightEnd") private var nightEnd = 420
     var body: some Scene {
@@ -158,7 +158,7 @@ struct HomeView: View {
                                 }
                             }
                         }
-                        NavigationLink { HouseholdView() } label: {
+                        NavigationLink { HouseholdView().navigationTitle("Tâches") } label: {
                             Label("Voir toutes mes tâches", systemImage: "arrow.right")
                                 .font(.subheadline.weight(.semibold))
                                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -173,7 +173,7 @@ struct HomeView: View {
                             .accessibilityIdentifier("quickAddTask")
                         quickAction("Course", symbol: "basket.badge.plus") { addShopping = true }
                             .accessibilityIdentifier("quickAddShopping")
-                        NavigationLink { KitchenView() } label: {
+                        NavigationLink { KitchenView().navigationTitle("Cuisine") } label: {
                             quickActionAppearance("Cuisine", symbol: "fork.knife")
                         }
                         .buttonStyle(.plain)
@@ -206,7 +206,7 @@ struct HomeView: View {
                                         .font(.subheadline)
                                 }
                             }
-                            NavigationLink { PlanningView() } label: {
+                            NavigationLink { PlanningView().navigationTitle("Planning") } label: {
                                 Label("Ouvrir mon planning", systemImage: "arrow.right")
                                     .font(.subheadline.weight(.semibold))
                                     .padding(.top, 4)
