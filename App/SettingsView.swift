@@ -25,6 +25,14 @@ struct SettingsView: View {
                 TextField("Exclusions séparées par des virgules", text: $exclusions).textInputAutocapitalization(.never)
                 Text("Exemples : lait, gluten, œufs, soja, poisson, poulet. Correspondance sur les noms exacts ; pas de garantie contre les traces ou contaminations croisées.").font(.caption)
             }
+            Section("Mon iPhone") {
+                Label("Version personnelle — hors ligne", systemImage: "iphone")
+                Text("Mes tâches, mes courses, mes repas et mon planning sont conservés sur cet iPhone. Aucun compte, aucune invitation, aucune synchronisation.")
+                    .font(.caption)
+                Text("Avant une réinstallation, préparez une sauvegarde JSON dans Confidentialité, puis enregistrez-la dans Fichiers.")
+                    .font(.caption)
+            }
+            if !DUORelease.soloOnly {
             Section("Notre espace commun") {
                 Text(store.status)
                 Text("La connexion utilise le service Supabase configuré pour DUO. Seules les données créées dans le foyer connecté seront envoyées. Le mode local reste séparé.").font(.caption)
@@ -112,9 +120,13 @@ struct SettingsView: View {
                     }
                 }
             }
+            }
             Section("Confidentialité") {
                 Text("Aucune publicité ni analyse d’usage. L’assistant local fonctionne sans API externe. Le bouton IA en ligne transmet uniquement la question saisie, après votre action explicite, si ce service optionnel est configuré. Les séances et habitudes sont privées par défaut. Aucun accès Santé, Contacts ou calendrier Apple.")
-                Text("Export local au format JSON, sans mots de passe ni jetons. Pour un compte synchronisé, lancez d’abord une synchronisation ; le fichier reflète ensuite les données visibles sur cet iPhone.").font(.caption)
+                Text(DUORelease.soloOnly
+                    ? "Export local JSON, sans mot de passe : sauvegardez-le dans Fichiers avant toute désinstallation. Gardez la même application lors des renouvellements de signature."
+                    : "Export local JSON, sans mots de passe ni jetons. Pour un compte synchronisé, lancez d’abord une synchronisation ; le fichier reflète ensuite les données visibles sur cet iPhone.")
+                    .font(.caption)
                 Button("Préparer une copie de mes données") {
                     do { exportURL = try store.prepareExport() }
                     catch { store.error = error.localizedDescription }
@@ -130,7 +142,13 @@ struct SettingsView: View {
                 }
             }
             Section("À propos") {
-                Text("DUO est en version de développement. La suppression en ligne exige la migration SQL 002 et la fonction serveur delete-account déployées. Aucun effacement distant n’est simulé en l’absence de ce service.").font(.caption)
+                if DUORelease.soloOnly {
+                    Text("DUO Solo est une version de développement installée sur un seul iPhone. Les données restent locales ; la synchronisation sera étudiée ultérieurement.")
+                        .font(.caption)
+                } else {
+                    Text("DUO est en version de développement. La suppression en ligne exige la migration SQL 002 et la fonction serveur delete-account déployées. Aucun effacement distant n’est simulé en l’absence de ce service.")
+                        .font(.caption)
+                }
             }
         }.onAppear {
             if let token = store.pendingInvitation { invitation = token }
