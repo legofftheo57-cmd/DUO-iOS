@@ -61,7 +61,7 @@ struct AssistantView: View {
                         .disabled(waiting || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .accessibilityLabel("Réponse locale gratuite")
                 }
-                if store.backend?.session != nil {
+                if !DUORelease.soloOnly && store.backend?.session != nil {
                     Button {
                         Task { await askCloud() }
                     } label: {
@@ -126,8 +126,10 @@ struct AssistantView: View {
         }
         action = nil
         if store.error == nil {
-            exchanges.append(ConversationLine(text: "C’est fait. La modification est enregistrée sur cet iPhone et sera synchronisée lorsque le service sera configuré."))
-            Task { await store.sync(showErrors: false) }
+            exchanges.append(ConversationLine(text: DUORelease.soloOnly
+                ? "C’est fait. La modification est enregistrée sur cet iPhone."
+                : "C’est fait. La modification est enregistrée sur cet iPhone et sera synchronisée lorsque le service sera configuré."))
+            if !DUORelease.soloOnly { Task { await store.sync(showErrors: false) } }
         } else { responseError = store.error }
     }
 }
