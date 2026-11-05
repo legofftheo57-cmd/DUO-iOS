@@ -170,7 +170,9 @@ struct HomeView: View {
                     sectionHeading("Actions rapides", detail: "En un geste")
                     HStack(spacing: 10) {
                         quickAction("Tâche", symbol: "checkmark.circle.badge.plus") { addTask = true }
+                            .accessibilityIdentifier("quickAddTask")
                         quickAction("Course", symbol: "basket.badge.plus") { addShopping = true }
+                            .accessibilityIdentifier("quickAddShopping")
                         NavigationLink { KitchenView() } label: {
                             quickActionAppearance("Cuisine", symbol: "fork.knife")
                         }
