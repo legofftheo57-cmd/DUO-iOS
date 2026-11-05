@@ -120,7 +120,7 @@ final class DUOUITests: XCTestCase {
 
     func testCoupleIdeasTabAndCompletion() {
         app.tabBars.buttons["Nous"].tap()
-        XCTAssertTrue(app.navigationBars["Nous"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Nous deux"].waitForExistence(timeout: 5))
         let buttons = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "coupleIdeaToggle"))
         XCTAssertEqual(buttons.count, 3)
         let first = buttons.element(boundBy: 0)
