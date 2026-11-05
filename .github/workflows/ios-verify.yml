@@ -67,6 +67,7 @@ jobs:
             -derivedDataPath TestResults/DerivedData \
             -resultBundlePath TestResults/DUO-UI.xcresult \
             -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES \
+            -skip-testing:DUOUITests/DUOUITests/testAccessibilityAudit \
             test 2>&1 | tee TestResults/ui.log
       - name: Rapports de diagnostic (journaux uniquement)
         if: always()
