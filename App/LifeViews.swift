@@ -84,7 +84,20 @@ struct HouseholdView: View {
                 ForEach(tasks) { row in
                     if case .task(let t) = row.payload {
                         HStack {
-                            if !history { Button { store.toggle(row) } label: { Image(systemName: "circle").frame(width: 44, height: 44) }.buttonStyle(.borderless).accessibilityLabel("Terminer \(t.title)") }
+                            if !history {
+                                Button { store.toggle(row) } label: {
+                                    Image(systemName: "circle").frame(width: 44, height: 44)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Terminer \(t.title)")
+                            } else {
+                                Button { store.reopenTask(row) } label: {
+                                    Image(systemName: "arrow.uturn.backward.circle")
+                                        .frame(width: 44, height: 44)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Rouvrir \(t.title)")
+                            }
                             NavigationLink { ItemEditor(kind: "task", row: row) } label: {
                                 VStack(alignment: .leading, spacing: 4) { Text(t.title); Text(DUORelease.soloOnly ? "Sur cet iPhone" : store.assigneeLabel(t.assignee)).font(.caption).foregroundStyle(Color("SecondaryReadable")); if let due = t.due { Text(due.formatted(date: .abbreviated, time: .shortened)).font(.caption) }; if let done = t.completed { Text("Terminée " + done.formatted(date: .abbreviated, time: .shortened)).font(.caption) } }
                             }
