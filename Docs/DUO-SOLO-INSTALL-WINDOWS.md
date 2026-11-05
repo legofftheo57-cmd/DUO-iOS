@@ -20,7 +20,7 @@ Objectif : une application native iOS hors ligne sur le seul iPhone du propriét
 La branche de livraison est **work/solo-iphone-install-20261105**.
 
 Dans GitHub, ouvrir **Actions → DUO - verification iOS (manuel) → Run workflow**.
-Sélectionner la branche ci-dessus, désactiver le paramètre include_ui_tests pour la première compilation et activer build_solo_ipa.
+Sélectionner la branche ci-dessus et laisser include_ui_tests désactivé pour la première compilation. Le workflow détecte cette branche et produit automatiquement le paquet IPA si les validations réussissent.
 
 Le workflow :
 1. exécute les tests du noyau Swift ;
