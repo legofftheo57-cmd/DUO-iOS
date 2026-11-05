@@ -1,5 +1,7 @@
 import SwiftUI
-import DUOCore
+// Import only TimeRules: DUOCore also exports a global Content enum,
+// which shadows ViewModifier.Content in DuoPanel's body signature.
+import enum DUOCore.TimeRules
 
 enum DuoTheme {
     static let light: [String: String] = ["Background":"F5F6F8", "Surface":"E5EAF1", "Ice":"C4D0E0", "Accent":"9AAEC8", "Text":"202632", "Secondary":"60728C", "SecondaryAccent":"697F9E"]
