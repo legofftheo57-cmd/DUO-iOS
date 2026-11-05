@@ -1,0 +1,1 @@
+Authorized 2026-11-05 by DUO owner. Build current work/solo-iphone-install-20261105 commit, compile Simulator + iPhone, package unsigned IPA, run six iOS UI test methods. No publication, no Apple signing, no charge authorization beyond existing GitHub included minutes. This request marker is used exactly once.
