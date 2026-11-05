@@ -1,0 +1,4 @@
+DUO Solo - compilation iPhone demandee par le proprietaire le 5 novembre 2026.
+Branche: work/solo-iphone-install-20261105
+Actions: tests noyau, build simulateur, build device, package IPA non signe.
+Aucun deployement, publication, achat ou signature Apple.
