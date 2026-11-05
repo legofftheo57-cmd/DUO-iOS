@@ -1,70 +1,45 @@
-# DUO Solo — installation sur un seul iPhone (Windows)
+# Installer DUO Solo sur iPhone depuis Windows
 
-État au 5 novembre 2026 : **premier IPA iPhone généré et 66 tests du noyau réussis le 5 novembre (run 42070149725)**. Depuis, l'interface choisie a été simplifiée (quatre onglets et Graphite & Ice sombre par défaut) et des fonctions locales ont été ajoutées. **Cette nouvelle version n'est pas encore recompilée ni installée sur un iPhone.** Le run 42075237183 n'a reçu aucun runner macOS et n'a donc exécuté aucun test.
+Version avec « Nous deux » — 5 novembre 2026. Application native, locale, iOS 17 minimum.
 
-Objectif : une application native iOS hors ligne sur le seul iPhone du propriétaire. La synchronisation avec Lilou, les comptes et l'IA distante sont reportés.
+## Télécharger le bon paquet
 
-## Ce qui existe dans le code
+Dans le dépôt privé, ouvrir [GitHub Actions](https://github.com/legofftheo57-cmd/DUO-iOS/actions), puis le dernier contrôle **réussi** de la branche `work/solo-iphone-install-20261105`.
+Dans **Artifacts**, télécharger `DUO-solo-validated-…`, puis extraire le ZIP sous Windows.
+Le paquet contient `DUO-solo-unsigned.ipa`, le commit exact dans `SOURCE-COMMIT.txt`, l’empreinte dans `SHA256SUMS.txt`, les résultats et ce guide.
+Ne pas utiliser l’ancien IPA du 5 novembre qui précède « Nous deux ». Les artefacts sont conservés 30 jours : garder le paquet sur le PC.
 
-- SwiftUI natif : cinq onglets Accueil, Cuisine, Courses, Planning et Tâches.
-- Identité **Graphite & Ice** conservée (palette dynamique et mode sombre).
-- Accueil avec tâches ouvertes, courses, raccourcis et suggestions de repas.
-- Création/modification locale de tâches, d'événements, de courses et d'aliments.
-- Recettes, planification de repas, stocks et suivi d'habitudes.
-- Sauvegarde JSON locale et import avec validation et confirmation avant remplacement.
-- Pas de connexion automatique ni d'envoi au serveur en version solo.
-- Joe : réponses locales uniquement, sans abonnement IA requis.
+L’IPA est **non signé**. Il ne peut pas s’installer en le touchant depuis Fichiers sur l’iPhone.
 
-## Étape 1 — Produire un IPA non signé
+## Installation personnelle gratuite
 
-La branche de livraison est **work/solo-iphone-install-20261105**. Le concept retenu est Graphite & Ice aéré : fond sombre par défaut, quatre onglets Accueil / Tâches / Courses / Planning et cuisine accessible depuis l’accueil. Les tâches terminées peuvent être rouvertes depuis l’historique ; une occurrence récurrente modifiée n’est jamais effacée silencieusement.
+1. Sur le PC, télécharger [Sideloadly pour Windows depuis son site officiel](https://sideloadly.io/). Installer les composants Apple demandés par l’éditeur. Si l’iPhone n’est pas détecté, consulter sa FAQ pour les versions web d’iTunes/iCloud et leurs pilotes.
+2. Brancher l’iPhone par un câble USB de données, le déverrouiller et accepter **Faire confiance à cet ordinateur**.
+3. Dans Sideloadly, sélectionner cet iPhone et glisser **DUO-solo-unsigned.ipa**. Utiliser la signature avec ton **compte Apple personnel**. Saisir toi-même ton mot de passe et le code à deux facteurs dans le logiciel ; ne pas les communiquer à ChatGPT. Aucun abonnement Apple Developer payant n’est nécessaire pour cette méthode personnelle.
+4. Lancer la signature et l’installation. Ne pas modifier la version iOS minimale ni injecter d’extensions. Conserver le compte et l’identifiant d’application attribué par Sideloadly pour les renouvellements.
+5. Si demandé, sur l’iPhone : **Réglages → Confidentialité et sécurité → Mode développeur**, activer puis suivre le redémarrage et la confirmation. Si « développeur non approuvé » apparaît : **Réglages → Général → VPN et gestion de l’appareil**, ouvrir le profil correspondant à ton compte et lui faire confiance.
+6. Ouvrir **DUO** depuis l’écran d’accueil et suivre `TEST-IPHONE.md`.
 
-Dans GitHub, ouvrir **Actions → DUO - verification iOS (manuel) → Run workflow**.
-Sélectionner la branche ci-dessus et laisser include_ui_tests désactivé pour la première compilation. Le workflow détecte cette branche et produit automatiquement le paquet IPA si les validations réussissent.
+Sideloadly est un logiciel tiers, distinct d’Apple. Le processus utilise la signature personnelle de développement sans jailbreak ; sa réussite sur ton PC et ton iPhone reste à vérifier physiquement.
 
-Le workflow :
-1. exécute les tests du noyau Swift ;
-2. compile l'interface SwiftUI pour le simulateur ;
-3. compile l'application pour un vrai iPhone (iphoneos) sans signature ;
-4. si les étapes ont réussi, produit un artefact **DUO-solo-unsigned-ipa**.
+## Renouvellement tous les sept jours
 
-**Ce workflow utilise des minutes de runner macOS GitHub (susceptibles d'être facturées selon le forfait/quota). Ne pas le lancer sans validation explicite du propriétaire.**
-Il comporte un plafond de 25 minutes. En cas d'échec de compilation, consulter l'artefact duo-xcode-diagnostics et corriger le code avant de réessayer. Un simple fichier IPA non signé n'est pas directement installable.
+Les profils gratuits Apple expirent après sept jours et le nombre d’apps signées gratuitement est limité à trois par appareil. Renouveler DUO avant expiration, avec le même compte Apple et le même identifiant d’application, **en installant par-dessus sans supprimer DUO**.
 
-## Étape 2 — Installer depuis Windows
+Le renouvellement automatique de Sideloadly nécessite son service actif sur le PC et l’iPhone accessible par USB ou par Wi-Fi préalablement configuré. Pour le Wi-Fi : connecter d’abord en USB, activer la synchronisation Wi-Fi dans iTunes puis garder PC et iPhone sur le même réseau. Un PC éteint ne peut pas renouveler l’app.
 
-Le logiciel tiers [Sideloadly](https://sideloadly.io/) permet de signer l'IPA avec un compte Apple gratuit, puis de le charger sur l'iPhone. Ce logiciel ne fait pas partie de DUO ; utiliser uniquement sa source officielle, lire les conditions et ne communiquer les identifiants Apple qu'au logiciel si vous acceptez ses modalités.
+Avant chaque mise à jour ou renouvellement : **Réglages de DUO → Confidentialité → Préparer une copie de mes données → Enregistrer ou partager l’export → Enregistrer dans Fichiers**. Garder aussi une copie hors de l’app. Si la signature expire, renouveler sans désinstaller.
 
-1. Sur ton PC Windows, installer la version officielle de Sideloadly et les composants Apple Windows qu'il demande.
-2. Brancher l'iPhone, le déverrouiller et autoriser la confiance envers le PC.
-3. Télécharger l'artefact du workflow, extraire le fichier DUO-solo-unsigned.ipa du ZIP.
-4. Dans Sideloadly, sélectionner l'iPhone et l'IPA puis utiliser ton propre identifiant Apple pour signer et installer.
-5. Si iOS le demande, activer **Mode développeur** dans Réglages > Confidentialité et sécurité. Autoriser le profil d'app développeur dans les Réglages si nécessaire.
-6. Ouvrir DUO, créer une tâche, fermer et rouvrir l'application : la tâche doit être toujours là.
-7. Vérifier les courses, les repas et un export/import sur des données de test avant toute utilisation importante.
+## Données et restauration
 
-Avec un compte Apple gratuit, la signature doit être renouvelée environ tous les **7 jours**. Sideloadly dispose d'un système de rafraîchissement automatique avec un PC accessible par USB ou Wi-Fi configuré. Lors du renouvellement, conserver **le même identifiant Apple et le même identifiant d'application**, réinstaller par-dessus l'app et ne pas supprimer l'app existante. **Faire d'abord un export JSON**, stocké dans Fichiers ou un emplacement choisi.
+L’export contient tâches, courses, stocks, repas, événements, habitudes et validations quotidiennes de « Nous deux ». Les préférences d’apparence et exclusions alimentaires sont à noter séparément : elles ne sont pas incluses dans cet export.
 
-Références à jour :
-- [FAQ officielle Sideloadly](https://sideloadly.io/faq.html)
-- [Règles Apple des Personal Teams](https://developer.apple.com/help/account/basics/about-your-developer-account)
+Pour restaurer : **Réglages → Confidentialité → Restaurer une sauvegarde DUO**, sélectionner le JSON, puis confirmer le remplacement. DUO valide le fichier et écrit une copie de l’état courant avant de le remplacer. **Enregistrer la copie avant restauration** permet de récupérer cet état. Cette copie est locale et remplacée à la restauration suivante : l’enregistrer hors de DUO avant une autre restauration.
 
-## Vérifications bloquantes avant usage normal
+DUO Solo ne synchronise pas les deux iPhone. Joe est local ; les prix des magasins ne sont pas connectés. Les données locales ne remplacent pas un export régulier. L’application n’est ni publiée sur l’App Store ni distribuée par TestFlight.
 
-- [ ] Tests DUOCore réussis sur le commit actuel.
-- [ ] Compilation SwiftUI simulateur réussie ; aucune erreur.
-- [ ] Compilation iPhone et génération de l'IPA réussies.
-- [ ] Signature/installation sur le véritable iPhone réussies.
-- [ ] Ouverture, création de tâche, sauvegarde après redémarrage.
-- [ ] Parcours courses + repas + planning testé.
-- [ ] Export JSON, import sur copie de test et confirmation de restauration.
-- [ ] Lisibilité avec mode sombre, taille de texte accrue et VoiceOver rapide.
-- [ ] Rafraîchissement de la signature testé sans suppression des données.
+## Sources vérifiées le 5 novembre 2026
 
-## Limites volontaires
-
-- Les données solo ne sont pas synchronisées avec le téléphone de Lilou.
-- Les sauvegardes JSON sont à exporter manuellement ; la copie locale est exclue de la sauvegarde iCloud.
-- Aucun prix réel de magasin, aucune garantie de budget courses et aucune IA payante.
-- Ce build n'est pas publié sur l'App Store ni accessible dans TestFlight.
-- La source et l'IPA ne doivent pas être publiés ou partagés sans approbation.
+- [Apple : compte et Personal Team](https://developer.apple.com/help/account/basics/about-your-developer-account)
+- [Sideloadly : téléchargement](https://sideloadly.io/)
+- [Sideloadly : installation, confiance, renouvellement et limites](https://sideloadly.io/faq.html)

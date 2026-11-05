@@ -139,12 +139,16 @@ struct SettingsView: View {
                     ShareLink(item: exportURL) { Label("Enregistrer ou partager l’export", systemImage: "square.and.arrow.up") }
                 }
                 if DUORelease.soloOnly {
+                    if let backup = store.safetyBackupURL {
+                        ShareLink(item: backup) { Label("Enregistrer la copie avant restauration", systemImage: "externaldrive.badge.checkmark") }
+                    }
+                    Text(store.status).font(.caption).accessibilityIdentifier("storageStatus")
                     Button {
                         showRestorePicker = true
                     } label: {
                         Label("Restaurer une sauvegarde DUO", systemImage: "arrow.counterclockwise.icloud")
                     }
-                    Text("La restauration remplace toutes les données actuelles. Une confirmation sera demandée avant toute modification.")
+                    Text("La restauration remplace les données actuelles après confirmation. Une copie de sécurité de l’état précédent est conservée sur cet iPhone et peut être enregistrée ci-dessus.")
                         .font(.caption)
                 }
                 if store.backend?.session != nil {
@@ -201,4 +205,3 @@ struct SettingsView: View {
         Binding(get: { Calendar.current.date(bySettingHour: minutes.wrappedValue / 60, minute: minutes.wrappedValue % 60, second: 0, of: Date()) ?? Date() }, set: { value in let c = Calendar.current.dateComponents([.hour, .minute], from: value); minutes.wrappedValue = (c.hour ?? 0) * 60 + (c.minute ?? 0) })
     }
 }
-

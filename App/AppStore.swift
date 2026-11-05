@@ -12,9 +12,15 @@ import UserNotifications
     var meals: [Meal] { records.compactMap { if case .meal(let m) = $0.payload { return m }; return nil } }
     var exclusions: Set<String> { Set(UserDefaults.standard.string(forKey: "exclusions", default: "").split(separator: ",").map { normalized(String($0)) }) }
     var suggestions: [Recipe] { MealEngine.suggestions(catalog: Catalog.recipes, stock: foods, exclusions: exclusions, recent: meals.filter { $0.date > Date().addingTimeInterval(-7 * 86400) }.map(\.recipeID)) }
-    init() {
+    init(scopeOverride: String? = nil) {
         pendingInvitation = InviteVault.load()
-        do { let args = ProcessInfo.processInfo.arguments; let index = args.firstIndex(of: "-duo-ui-test"); let scope = index != nil && args.count > index! + 1 ? "ui-test-" + args[index! + 1] : "local"; let local = try DiskStore(scope: scope); snapshot = try local.read() ?? Snapshot(); disk = local; ready = true }
+        do { let args = ProcessInfo.processInfo.arguments; let index = args.firstIndex(of: "-duo-ui-test"); let scope = index != nil && args.count > index! + 1 ? "ui-test-" + args[index! + 1] : "local"; let local = try DiskStore(scope: scopeOverride ?? scope); snapshot = try local.read() ?? Snapshot(); disk = local; ready = true
+            if scopeOverride == nil && index == nil && snapshot.coupleDay == nil,
+               let day = UserDefaults.standard.string(forKey: "duo.couple.completedDay") {
+                snapshot.coupleDay = day
+                snapshot.coupleCompleted = UserDefaults.standard.string(forKey: "duo.couple.completedIndices", default: "").split(separator: ",").compactMap { Int($0) }
+                try local.write(snapshot)
+            } }
         catch { self.error = error.localizedDescription }
         // A saved session is not used to send local data. Reconnection selects an isolated user cache.
     }
@@ -274,15 +280,28 @@ import UserNotifications
         }
         return checked
     }
-    func restoreLocalImport(_ imported: Snapshot) throws {
+    var safetyBackupURL: URL? {
+        guard let disk else { return nil }
+        let url = disk.url.deletingPathExtension().appendingPathExtension("before-restore.json")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+    @discardableResult
+    func restoreLocalImport(_ imported: Snapshot) throws -> URL {
         guard DUORelease.soloOnly, backend == nil, ready, !syncing, let disk else {
             throw DuoError.invalid("La restauration locale est indisponible.")
         }
         let checked = try Snapshot.decode(JSONEncoder().encode(imported))
+        guard checked.conflicts.isEmpty else { throw DuoError.invalid("La sauvegarde contient des conflits non résolus.") }
+        // Create a durable recovery export before replacing any current data.
+        // If this write fails, leave the current snapshot untouched.
+        let backup = disk.url.deletingPathExtension().appendingPathExtension("before-restore.json")
+        let archive = DuoExport(exportedAt: Date(), scope: "local", snapshot: snapshot)
+        try JSONEncoder().encode(archive).write(to: backup, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         try disk.write(checked)
         snapshot = checked
         status = "Sauvegarde restaurée sur cet iPhone"
         error = nil
+        return backup
     }
     func deleteAccount() async {
         guard !syncing, let backend, let user = backend.session?.user.id else { error = "Connectez-vous au compte à supprimer."; return }
@@ -353,4 +372,3 @@ private struct DuoExport: Codable {
         self.snapshot = snapshot
     }
 }
-

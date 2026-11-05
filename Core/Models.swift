@@ -91,6 +91,9 @@ public struct Record: Codable, Equatable, Identifiable, Sendable {
 }
 public struct Conflict: Codable, Identifiable, Sendable { public var id: UUID { local.id }; public var local: Record; public var remote: Record }
 public struct Snapshot: Codable, Sendable {
+    // Optional fields preserve compatibility with existing v1 local backups.
+    public var coupleDay: String?
+    public var coupleCompleted: [Int]?
     public var schema = 1; public var householdID: UUID; public var userID: UUID; public var records: [Record] = []; public var pending: [UUID] = []; public var conflicts: [Conflict] = []
     public init(householdID: UUID = UUID(), userID: UUID = UUID()) { self.householdID = householdID; self.userID = userID }
     public static func decode(_ data: Data) throws -> Snapshot {

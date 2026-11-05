@@ -45,7 +45,7 @@ struct RootView: View {
             nav("Tâches") { HouseholdView() }.tabItem { Label("Tâches", systemImage: "checkmark.circle") }
             nav("Courses") { ShoppingView() }.tabItem { Label("Courses", systemImage: "basket") }
             nav("Planning") { PlanningView() }.tabItem { Label("Planning", systemImage: "calendar") }
-            nav("Nous") { CoupleIdeasView() }.tabItem { Label("Nous", systemImage: "heart") }
+            nav("Nous deux") { CoupleIdeasView() }.tabItem { Label("Nous", systemImage: "heart") }
         }
         .disabled(store.syncing || !store.ready)
         .overlay { if store.syncing { ProgressView("Synchronisation…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) } }
@@ -384,8 +384,7 @@ private struct CoupleIdea {
 }
 
 struct CoupleIdeasView: View {
-    @AppStorage("duo.couple.completedDay") private var completedDay = ""
-    @AppStorage("duo.couple.completedIndices") private var completedIndices = ""
+    @Environment(AppStore.self) private var store
     @State private var selectedDate = Date()
 
     // Curated, offline, free suggestions: no accounts, analytics or personal data.
@@ -420,26 +419,21 @@ struct CoupleIdeasView: View {
         .init(title: "Le bilan sans jugement", detail: "Chacun partage une chose appréciée cette semaine et une petite amélioration souhaitée.", minutes: 15, symbol: "person.2", category: "Communication")
     ]
 
-    private var dayKey: String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: selectedDate)
-        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
-    }
-    private var dayNumber: Int {
-        Calendar.current.ordinality(of: .day, in: .era, for: selectedDate) ?? 0
-    }
-    private var todaysIndices: [Int] {
-        let base = (dayNumber * 3) % ideas.count
-        return (0..<3).map { (base + $0) % ideas.count }
-    }
+    private var dayKey: String { CoupleSchedule.dayKey(selectedDate) }
+    private var todaysIndices: [Int] { CoupleSchedule.indices(on: selectedDate, count: ideas.count) }
     private var done: Set<Int> {
-        guard completedDay == dayKey else { return [] }
-        return Set(completedIndices.split(separator: ",").compactMap { Int($0) })
+        store.snapshot.coupleDay == dayKey ? Set(store.snapshot.coupleCompleted ?? []) : []
     }
     private func toggle(_ index: Int) {
-        var updated = done
-        if updated.contains(index) { updated.remove(index) } else { updated.insert(index) }
-        completedDay = dayKey
-        completedIndices = updated.sorted().map(String.init).joined(separator: ",")
+        // Resolve the real day at the tap, even across a midnight boundary.
+        selectedDate = Date()
+        guard todaysIndices.contains(index) else { return }
+        store.transact { snapshot in
+            var updated = snapshot.coupleDay == dayKey ? Set(snapshot.coupleCompleted ?? []) : []
+            if updated.contains(index) { updated.remove(index) } else { updated.insert(index) }
+            snapshot.coupleDay = dayKey
+            snapshot.coupleCompleted = updated.sorted()
+        }
     }
 
     var body: some View {
@@ -460,12 +454,18 @@ struct CoupleIdeasView: View {
                 ForEach(todaysIndices, id: \.self) { index in
                     let idea = ideas[index]
                     VStack(alignment: .leading, spacing: 12) {
-                        HStack {
+                        ViewThatFits(in: .horizontal) {
+                          HStack {
                             Label(idea.category, systemImage: idea.symbol)
                                 .font(.caption.weight(.semibold)).foregroundStyle(Color("Accent"))
                             Spacer()
                             Label("\(idea.minutes) min", systemImage: "clock")
                                 .font(.caption).foregroundStyle(Color("SecondaryReadable"))
+                        }
+                          VStack(alignment: .leading, spacing: 6) {
+                            Label(idea.category, systemImage: idea.symbol)
+                            Label("\(idea.minutes) min", systemImage: "clock")
+                          }.font(.caption).foregroundStyle(Color("Accent"))
                         }
                         Text(idea.title).font(.headline)
                         Text(idea.detail).font(.subheadline)
@@ -479,6 +479,8 @@ struct CoupleIdeasView: View {
                         }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("coupleIdeaToggle\(index)")
+                        .accessibilityValue(done.contains(index) ? "Terminée" : "À découvrir")
+                        .accessibilityHint(done.contains(index) ? "Touchez pour annuler la validation" : "Valider cette activité ensemble")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .duoPanel()
@@ -492,6 +494,12 @@ struct CoupleIdeasView: View {
         .navigationTitle("Nous deux")
         .onAppear { selectedDate = Date() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            selectedDate = Date()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            selectedDate = Date()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             selectedDate = Date()
         }
         .accessibilityIdentifier("coupleIdeasScreen")

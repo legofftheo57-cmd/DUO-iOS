@@ -69,7 +69,10 @@ struct HouseholdView: View {
                     Button("Changer les draps") { addPreset("Changer les draps") }
                 } label: { Label("Ajouter une tâche habituelle", systemImage: "sparkles") }
                 NavigationLink { HabitsView() } label: { Label("Sport & habitudes", systemImage: "figure.mind.and.body") }
-                Toggle("Voir l’historique", isOn: $history)
+                Picker("État des tâches", selection: $history) {
+                    Text("À faire").tag(false)
+                    Text("Terminées").tag(true)
+                }.pickerStyle(.segmented).accessibilityIdentifier("taskHistory")
             }
             Section(history ? "Actions accomplies" : "À faire, à votre rythme") {
                 let tasks = store.records.filter {
@@ -101,7 +104,8 @@ struct HouseholdView: View {
                             NavigationLink { ItemEditor(kind: "task", row: row) } label: {
                                 VStack(alignment: .leading, spacing: 4) { Text(t.title); Text(DUORelease.soloOnly ? "Sur cet iPhone" : store.assigneeLabel(t.assignee)).font(.caption).foregroundStyle(Color("SecondaryReadable")); if let due = t.due { Text(due.formatted(date: .abbreviated, time: .shortened)).font(.caption) }; if let done = t.completed { Text("Terminée " + done.formatted(date: .abbreviated, time: .shortened)).font(.caption) } }
                             }
-                        }.contextMenu { if !history { Button("Me rappeler à l’échéance") { Task { await store.remind(row) } } } }
+                        }.accessibilityElement(children: .contain)
+                        .contextMenu { if !history { Button("Me rappeler à l’échéance") { Task { await store.remind(row) } } } }
                         .swipeActions { Button("Supprimer", role: .destructive) { store.remove(row) } }
                     }
                 }

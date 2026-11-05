@@ -65,3 +65,28 @@ extension StateTests {
         XCTAssertThrowsError(try Snapshot.decode(JSONEncoder().encode(s)))
     }
 }
+
+extension StateTests {
+    func testCoupleRotationAcrossMidnightAndDST() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Paris")!
+        let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 3, day: 28, hour: 23, minute: 59)))
+        let next = day.addingTimeInterval(120)
+        let a = CoupleSchedule.indices(on: day, count: 28, calendar: calendar)
+        let b = CoupleSchedule.indices(on: next, count: 28, calendar: calendar)
+        XCTAssertEqual(Set(a).count, 3)
+        XCTAssertTrue(Set(a).isDisjoint(with: b))
+        XCTAssertNotEqual(CoupleSchedule.dayKey(day, calendar: calendar), CoupleSchedule.dayKey(next, calendar: calendar))
+        let later = next.addingTimeInterval(12 * 3600)
+        XCTAssertEqual(b, CoupleSchedule.indices(on: later, count: 28, calendar: calendar))
+    }
+    func testLegacyBackupAndCoupleValidationRoundTrip() throws {
+        var s = Snapshot()
+        let legacy = try JSONEncoder().encode(s)
+        XCTAssertNil(try Snapshot.decode(legacy).coupleDay)
+        s.coupleDay = "2026-11-05"; s.coupleCompleted = [1, 2]
+        let restored = try Snapshot.decode(JSONEncoder().encode(s))
+        XCTAssertEqual(restored.coupleDay, s.coupleDay)
+        XCTAssertEqual(restored.coupleCompleted, s.coupleCompleted)
+    }
+}

@@ -1,26 +1,27 @@
 name: DUO - verification iOS (manuel)
 
-# Manual only: private macOS runner time consumes included GitHub Actions credits.
+# Only the explicit validation request triggers a push build; ordinary edits are free.
 on:
+  push:
+    branches: [work/solo-iphone-install-20261105]
+    paths: [Docs/duo-solo-install-validation-request.txt]
   workflow_dispatch:
     inputs:
       include_ui_tests:
-        description: "Lancer aussi les tests du simulateur iPhone (plus longs)"
+        description: "Lancer les parcours iPhone requis avant livraison"
         type: boolean
-        default: false
+        default: true
         required: true
 permissions:
   contents: read
-
 concurrency:
   group: duo-ios-verification
-  cancel-in-progress: true
-
+  cancel-in-progress: false
 jobs:
   ios-tests:
-    name: Swift Core et compilation iOS
+    name: Swift Core, iPhone et parcours utilisateur
     runs-on: macos-15-intel
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,7 +35,6 @@ jobs:
           DUO_RUN_UI_TESTS: '0'
         run: bash Scripts/check-macos.sh
       - name: Compiler le binaire pour iPhone (sans signature)
-        if: ${{ github.ref_name == 'work/solo-iphone-install-20261105' }}
         run: |
           set -euo pipefail
           xcodebuild -project DUO.xcodeproj -scheme DUO -configuration Release \
@@ -48,16 +48,7 @@ jobs:
           ditto "$APP" TestResults/ipa/Payload/DUO.app
           (cd TestResults/ipa && zip -qr ../DUO-solo-unsigned.ipa Payload)
           unzip -t TestResults/DUO-solo-unsigned.ipa
-      - name: IPA solo pour signature personnelle sur Windows
-        if: ${{ github.ref_name == 'work/solo-iphone-install-20261105' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: DUO-solo-unsigned-ipa
-          path: TestResults/DUO-solo-unsigned.ipa
-          retention-days: 7
-          if-no-files-found: error
-
-      - name: Parcours iPhone sur simulateur (tests UI)
+      - name: Parcours iPhone et sauvegardes sur simulateur
         if: ${{ inputs.include_ui_tests || github.event_name == 'push' }}
         run: |
           set -euo pipefail
@@ -69,11 +60,44 @@ jobs:
             -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES \
             -skip-testing:DUOUITests/DUOUITests/testAccessibilityAudit \
             test 2>&1 | tee TestResults/ui.log
-      - name: Rapports de diagnostic (journaux uniquement)
+      - name: Préparer le paquet identifié et les instructions
+        if: ${{ inputs.include_ui_tests || github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITHUB_SHA" > TestResults/SOURCE-COMMIT.txt
+          (cd TestResults && shasum -a 256 DUO-solo-unsigned.ipa > SHA256SUMS.txt)
+          cp Docs/DUO-SOLO-INSTALL-WINDOWS.md TestResults/INSTALLATION-WINDOWS.md
+          cp Docs/DUO-SOLO-TEST-IPHONE.md TestResults/TEST-IPHONE.md
+          printf 'Build simulateur : réussi\nBuild iPhone : réussi\nTests noyau et tests sélectionnés du simulateur : réussis\nIPA non signé, installation physique restant à effectuer.\n' > TestResults/VALIDATION.txt
+          ditto -c -k --keepParent TestResults/DerivedData/Build/Products/Debug-iphonesimulator/DUO.app TestResults/DUO-simulator.zip
+      - name: IPA validé pour signature personnelle sur Windows
+        if: ${{ inputs.include_ui_tests || github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: DUO-solo-validated-${{ github.sha }}
+          path: |
+            TestResults/DUO-solo-unsigned.ipa
+            TestResults/SOURCE-COMMIT.txt
+            TestResults/SHA256SUMS.txt
+            TestResults/INSTALLATION-WINDOWS.md
+            TestResults/TEST-IPHONE.md
+            TestResults/VALIDATION.txt
+          retention-days: 30
+          if-no-files-found: error
+      - name: Build simulateur
+        if: ${{ inputs.include_ui_tests || github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: DUO-simulator-${{ github.sha }}
+          path: TestResults/DUO-simulator.zip
+          retention-days: 7
+      - name: Rapports de diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: duo-xcode-diagnostics
-          path: TestResults/*.log
-          retention-days: 2
+          name: duo-xcode-diagnostics-${{ github.sha }}
+          path: |
+            TestResults/*.log
+            TestResults/DUO-UI.xcresult
+          retention-days: 7
           if-no-files-found: ignore

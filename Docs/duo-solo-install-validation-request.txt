@@ -1,0 +1,3 @@
+Validation du 5 novembre 2026 autorisée par la mission DUO iOS finalisation et installation.
+Inclut Nous deux, correction du parcours historique, restauration avec copie de sécurité,
+tests de persistance et parcours utilisateur. Une seule compilation regroupée.

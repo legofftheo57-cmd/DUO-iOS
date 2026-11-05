@@ -136,3 +136,18 @@ public enum TimeRules {
         return next
     }
 }
+
+
+/// Local calendar dates keep the daily rotation stable through DST changes.
+public enum CoupleSchedule {
+    public static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+    public static func indices(on date: Date, count: Int, calendar: Calendar = .current) -> [Int] {
+        guard count > 0 else { return [] }
+        let day = calendar.ordinality(of: .day, in: .era, for: date) ?? 0
+        let base = ((day * 3) % count + count) % count
+        return (0..<min(3, count)).map { (base + $0) % count }
+    }
+}

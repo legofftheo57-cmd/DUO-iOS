@@ -69,7 +69,7 @@ struct AssistantView: View {
                             .font(.caption)
                     }.disabled(waiting || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                Text("Le mode local fonctionne sans réseau. Le mode en ligne exige une configuration serveur et une autorisation volontaire pour chaque question. Aucune action automatique.")
+                Text(DUORelease.soloOnly ? "Joe fonctionne sur cet iPhone, sans réseau. Tu confirmes chaque modification." : "Le mode local fonctionne sans réseau. Le mode en ligne exige une configuration serveur et une autorisation volontaire pour chaque question. Aucune action automatique.")
                     .font(.caption2).foregroundStyle(.secondary)
             }.padding(14).background(Color("Background"))
         }
