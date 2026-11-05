@@ -126,7 +126,6 @@ struct HomeView: View {
 
                     // Calm hierarchy: the next concrete action comes before dashboard metrics.
                     sectionHeading("Aujourd’hui", detail: "\(dueTasks(on: context.date).count) tâche(s)")
-                    
                     VStack(alignment: .leading, spacing: 0) {
                         if dueTasks(on: context.date).isEmpty {
                             emptyRow("Rien d’urgent. Profitez de ce temps libre.", symbol: "checkmark.seal")
@@ -205,11 +204,12 @@ struct HomeView: View {
                                         .font(.subheadline)
                                 }
                             }
-                        }
                             NavigationLink { PlanningView() } label: {
                                 Label("Ouvrir mon planning", systemImage: "arrow.right")
                                     .font(.subheadline.weight(.semibold))
+                                    .padding(.top, 4)
                             }
+                        }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .duoPanel()
                     }
