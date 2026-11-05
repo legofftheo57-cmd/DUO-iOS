@@ -26,7 +26,7 @@ enum DUORelease {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     RootView()
                         .environment(store)
-                        .preferredColorScheme(DuoTheme.scheme(mode: appearance, date: date, start: nightStart, end: nightEnd))
+                        .preferredColorScheme(DuoTheme.scheme(mode: appearance, date: context.date, start: nightStart, end: nightEnd))
                         .tint(Color("Control"))
                 }
             }
