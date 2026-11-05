@@ -21,6 +21,30 @@ final class DUOUITests: XCTestCase {
     func testCancelFoodDoesNotCreateIt() {
         app.tabBars.buttons["Accueil"].tap(); app.buttons["openKitchen"].tap(); app.buttons["addFood"].tap(); app.textFields["itemName"].tap(); app.textFields["itemName"].typeText("Annulation test"); app.buttons["Fermer"].tap(); XCTAssertFalse(app.staticTexts["Annulation test"].exists)
     }
+    func testQuickAddTaskAndPersistLocally() {
+        app.tabBars.buttons["Accueil"].tap()
+        app.buttons["quickAddTask"].tap()
+        let name = app.textFields["itemName"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("DUO tâche test")
+        app.buttons["saveItem"].tap()
+        XCTAssertTrue(app.staticTexts["DUO tâche test"].waitForExistence(timeout: 5))
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.staticTexts["DUO tâche test"].waitForExistence(timeout: 5))
+    }
+    func testQuickAddShoppingFromHome() {
+        app.tabBars.buttons["Accueil"].tap()
+        app.buttons["quickAddShopping"].tap()
+        let name = app.textFields["itemName"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Riz test")
+        app.buttons["saveItem"].tap()
+        app.tabBars.buttons["Courses"].tap()
+        XCTAssertTrue(app.staticTexts["Riz test"].waitForExistence(timeout: 5))
+    }
     func testAccessibilityAudit() throws {
         for title in ["Accueil", "Tâches", "Courses", "Planning"] { app.tabBars.buttons[title].tap(); try app.performAccessibilityAudit() }
     }
