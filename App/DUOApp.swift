@@ -135,7 +135,7 @@ struct HomeView: View {
                 homeContent(date: Date())
             } else {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
-                    homeContent(date: date)
+                    homeContent(date: context.date)
                 }
             }
         }
