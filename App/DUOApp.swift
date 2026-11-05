@@ -176,6 +176,7 @@ struct HomeView: View {
                             quickActionAppearance("Cuisine", symbol: "fork.knife")
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("openKitchen")
                         quickAction("RDV", symbol: "calendar.badge.plus") { addEvent = true }
                     }
 
