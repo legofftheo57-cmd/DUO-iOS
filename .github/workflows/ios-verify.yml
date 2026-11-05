@@ -2,6 +2,13 @@ name: DUO - verification iOS (manuel)
 
 # Manual only: private macOS runner time consumes included GitHub Actions credits.
 on:
+  # One build is triggered only by a deliberate request-file commit on this release branch.
+  # Ordinary source edits and changes to this workflow never trigger extra macOS minutes.
+  push:
+    branches:
+      - work/solo-iphone-install-20261105
+    paths:
+      - Docs/duo-solo-build-request-20261105.txt
   workflow_dispatch:
     inputs:
       include_ui_tests:
