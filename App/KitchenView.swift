@@ -88,7 +88,21 @@ struct ShoppingView: View {
     @Environment(AppStore.self) private var store; @State private var adding = false
     var body: some View {
         List {
-            Section { Text("Prix non renseignés · budget non vérifiable").font(.subheadline).foregroundStyle(Color("SecondaryReadable")); Button("Recalculer depuis le planning") { store.refreshShopping() }; Button("Ajouter un article") { adding = true } }
+            Section {
+                Button { adding = true } label: { Label("Ajouter un article", systemImage: "plus.circle.fill") }
+                    .accessibilityIdentifier("addShopping")
+                Menu {
+                    Button("Pain · 1 pièce") { addCommonItem("Pain", quantity: 1, unit: .piece) }
+                    Button("Lait · 1 L") { addCommonItem("Lait", quantity: 1, unit: .l) }
+                    Button("Œufs · 6 pièces") { addCommonItem("Œufs", quantity: 6, unit: .piece) }
+                    Button("Riz · 500 g") { addCommonItem("Riz", quantity: 500, unit: .g) }
+                    Button("Pâtes · 500 g") { addCommonItem("Pâtes", quantity: 500, unit: .g) }
+                    Button("Lessive · 1 flacon") { addCommonItem("Lessive", quantity: 1, unit: .piece, category: "Entretien") }
+                } label: { Label("Ajouter un indispensable", systemImage: "sparkles") }
+                Button("Recalculer depuis les repas") { store.refreshShopping() }
+                Text("Prix non renseignés · budget non vérifiable")
+                    .font(.caption).foregroundStyle(Color("SecondaryReadable"))
+            }
             ForEach([false, true], id: \.self) { checked in
                 Section(checked ? "Dans le panier" : "À acheter") {
                     ForEach(store.records.filter { if case .shopping(let s) = $0.payload { return s.checked == checked }; return false }) { row in
@@ -104,5 +118,18 @@ struct ShoppingView: View {
             Section { Text("Cocher un article ne l’ajoute pas au frigo. Enregistrez les achats reçus avant de recalculer les courses.").font(.caption) }
         }.sheet(isPresented: $adding) { NavigationStack { ItemEditor(kind: "shopping") } }
         .scrollContentBackground(.hidden).background(Color("Background"))
+    }
+    private func addCommonItem(_ name: String, quantity: Double, unit: FoodUnit, category: String = "Alimentation") {
+        let alreadyListed = store.records.contains { row in
+            guard case .shopping(let item) = row.payload else { return false }
+            return !item.checked && normalized(item.ingredient.name) == normalized(name)
+        }
+        guard !alreadyListed else {
+            store.error = "Cet article est déjà sur votre liste de courses."
+            return
+        }
+        var item = Shopping(ingredient: Ingredient(name, quantity, unit))
+        item.category = category
+        store.put(.shopping(item))
     }
 }
