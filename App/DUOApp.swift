@@ -5,6 +5,9 @@ import DUOCore
 // Change this flag only when two-device sync has been tested and approved.
 enum DUORelease {
     static let soloOnly = true
+    // Stable frames let XCUITest wait for the app to become idle.
+    // Normal users keep minute-by-minute live date/appearance updates.
+    static let uiTesting = ProcessInfo.processInfo.arguments.contains("-duo-ui-test")
 }
 
 @main @MainActor struct DUOApp: App {
@@ -14,10 +17,18 @@ enum DUORelease {
     @AppStorage("nightEnd") private var nightEnd = 420
     var body: some Scene {
         WindowGroup {
-            TimelineView(.periodic(from: .now, by: 30)) { context in
-                RootView().environment(store)
-                    .preferredColorScheme(DuoTheme.scheme(mode: appearance, date: context.date, start: nightStart, end: nightEnd))
+            if DUORelease.uiTesting {
+                RootView()
+                    .environment(store)
+                    .preferredColorScheme(.dark)
                     .tint(Color("Control"))
+            } else {
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    RootView()
+                        .environment(store)
+                        .preferredColorScheme(DuoTheme.scheme(mode: appearance, date: date, start: nightStart, end: nightEnd))
+                        .tint(Color("Control"))
+                }
             }
         }
     }
@@ -119,18 +130,32 @@ struct HomeView: View {
     }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    welcome(context.date)
+        Group {
+            if DUORelease.uiTesting {
+                homeContent(date: Date())
+            } else {
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    homeContent(date: date)
+                }
+            }
+        }
+        .sheet(isPresented: $addTask) { NavigationStack { ItemEditor(kind: "task") } }
+        .sheet(isPresented: $addShopping) { NavigationStack { ItemEditor(kind: "shopping") } }
+        .sheet(isPresented: $addEvent) { NavigationStack { ItemEditor(kind: "event") } }
+    }
+
+    private func homeContent(date: Date) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                welcome(date)
 
                     // Calm hierarchy: the next concrete action comes before dashboard metrics.
-                    sectionHeading("Aujourd’hui", detail: "\(dueTasks(on: context.date).count) tâche(s)")
+                    sectionHeading("Aujourd’hui", detail: "\(dueTasks(on: date).count) tâche(s)")
                     VStack(alignment: .leading, spacing: 0) {
-                        if dueTasks(on: context.date).isEmpty {
+                        if dueTasks(on: date).isEmpty {
                             emptyRow("Rien d’urgent. Profitez de ce temps libre.", symbol: "checkmark.seal")
                         }
-                        ForEach(dueTasks(on: context.date).prefix(3)) { row in
+                        ForEach(dueTasks(on: date).prefix(3)) { row in
                             if case .task(let task) = row.payload {
                                 HStack(spacing: 14) {
                                     Button { store.toggle(row) } label: {
@@ -143,9 +168,9 @@ struct HomeView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(task.title).font(.body.weight(.medium))
                                         if let due = task.due {
-                                            Text(due < context.date ? "En retard" : due.formatted(date: .omitted, time: .shortened))
+                                            Text(due < date ? "En retard" : due.formatted(date: .omitted, time: .shortened))
                                                 .font(.caption)
-                                                .foregroundStyle(due < context.date ? Color("Error") : Color("SecondaryReadable"))
+                                                .foregroundStyle(due < date ? Color("Error") : Color("SecondaryReadable"))
                                         } else {
                                             Text("Sans échéance").font(.caption).foregroundStyle(Color("SecondaryReadable"))
                                         }
@@ -153,7 +178,7 @@ struct HomeView: View {
                                     Spacer(minLength: 0)
                                 }
                                 .padding(.vertical, 5)
-                                if row.id != dueTasks(on: context.date).prefix(3).last?.id {
+                                if row.id != dueTasks(on: date).prefix(3).last?.id {
                                     Divider().opacity(0.35)
                                 }
                             }
@@ -189,17 +214,17 @@ struct HomeView: View {
                     .foregroundStyle(Color("SecondaryReadable"))
                     .accessibilityElement(children: .combine)
 
-                    if !todaysEvents(on: context.date).isEmpty || !todaysMeals(on: context.date).isEmpty {
+                    if !todaysEvents(on: date).isEmpty || !todaysMeals(on: date).isEmpty {
                         sectionHeading("Mon programme", detail: "Aujourd’hui")
                         VStack(alignment: .leading, spacing: 12) {
-                            ForEach(todaysEvents(on: context.date).prefix(2)) { row in
+                            ForEach(todaysEvents(on: date).prefix(2)) { row in
                                 if case .event(let event) = row.payload {
                                     Label(event.start.formatted(date: .omitted, time: .shortened) + " · " + event.title,
                                           systemImage: event.sport ? "figure.run" : "calendar")
                                         .font(.subheadline)
                                 }
                             }
-                            ForEach(todaysMeals(on: context.date).prefix(1)) { row in
+                            ForEach(todaysMeals(on: date).prefix(1)) { row in
                                 if case .meal(let meal) = row.payload,
                                    let recipe = Catalog.recipes.first(where: { $0.id == meal.recipeID }) {
                                     Label(recipe.title, systemImage: "fork.knife")
@@ -239,7 +264,7 @@ struct HomeView: View {
 
                     let expiring = store.foods.filter {
                         $0.quantity > 0 && $0.expiry != nil &&
-                        $0.expiry! < context.date.addingTimeInterval(3 * 86400)
+                        $0.expiry! < date.addingTimeInterval(3 * 86400)
                     }
                     if !expiring.isEmpty {
                         Label("À vérifier : " + expiring.map(\.name).joined(separator: ", "),
@@ -256,12 +281,8 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .padding(18)
-            }
-            .background(Color("Background"))
         }
-        .sheet(isPresented: $addTask) { NavigationStack { ItemEditor(kind: "task") } }
-        .sheet(isPresented: $addShopping) { NavigationStack { ItemEditor(kind: "shopping") } }
-        .sheet(isPresented: $addEvent) { NavigationStack { ItemEditor(kind: "event") } }
+        .background(Color("Background"))
     }
 
     private func welcome(_ date: Date) -> some View {
