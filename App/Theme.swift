@@ -19,8 +19,19 @@ struct DuoPanel: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) var reduceTransparency
     @ViewBuilder
     func body(content: Content) -> some View {
-        if reduceTransparency { content.padding().background(Color("Surface"), in: RoundedRectangle(cornerRadius: 24)) }
-        else { content.padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24)) }
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+        if reduceTransparency {
+            content
+                .padding(16)
+                .background(Color("Surface"), in: shape)
+                .overlay(shape.stroke(Color("Ice").opacity(0.24), lineWidth: 1))
+        } else {
+            content
+                .padding(16)
+                .background(.regularMaterial, in: shape)
+                .overlay(shape.stroke(Color("Ice").opacity(0.24), lineWidth: 1))
+                .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
+        }
     }
 }
 extension View { func duoPanel() -> some View { modifier(DuoPanel()) } }
