@@ -68,4 +68,54 @@ final class DUOUITests: XCTestCase {
     func testAccessibilityAudit() throws {
         for title in ["Accueil", "Tâches", "Courses", "Planning"] { app.tabBars.buttons[title].tap(); try app.performAccessibilityAudit() }
     }
+    func testCreatePlanningEventAndEditTitle() {
+        app.tabBars.buttons["Planning"].tap()
+        app.buttons["Ajouter un événement"].tap()
+        let name = app.textFields["itemName"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Rendez-vous DUO test")
+        app.buttons["saveItem"].tap()
+        let event = app.staticTexts["Rendez-vous DUO test"]
+        XCTAssertTrue(event.waitForExistence(timeout: 5))
+        event.tap()
+        let edited = app.textFields["itemName"]
+        XCTAssertTrue(edited.waitForExistence(timeout: 5))
+        edited.tap()
+        edited.press(forDuration: 1)
+        let selectAll = app.menuItems["Tout sélectionner"]
+        if selectAll.waitForExistence(timeout: 2) {
+            selectAll.tap()
+            edited.typeText("Rendez-vous DUO modifié")
+        } else {
+            edited.typeText(" modifié")
+        }
+        app.buttons["saveItem"].tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "modifié")).firstMatch.waitForExistence(timeout: 5))
+    }
+
+    func testAssistantOpensAndCloses() {
+        app.tabBars.buttons["Accueil"].tap()
+        app.buttons["Parler à Joe"].tap()
+        XCTAssertTrue(app.navigationBars["Joe"].waitForExistence(timeout: 5))
+        app.buttons["Fermer"].tap()
+        XCTAssertTrue(app.navigationBars["Accueil"].waitForExistence(timeout: 5))
+    }
+
+    func testShoppingItemPersistsAfterRelaunch() {
+        app.tabBars.buttons["Accueil"].tap()
+        app.buttons["quickAddShopping"].tap()
+        let name = app.textFields["itemName"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Pâtes DUO sauvegarde")
+        app.buttons["saveItem"].tap()
+        app.tabBars.buttons["Courses"].tap()
+        XCTAssertTrue(app.staticTexts["Pâtes DUO sauvegarde"].waitForExistence(timeout: 5))
+        app.terminate()
+        app.launch()
+        app.tabBars.buttons["Courses"].tap()
+        XCTAssertTrue(app.staticTexts["Pâtes DUO sauvegarde"].waitForExistence(timeout: 5))
+    }
+
 }
