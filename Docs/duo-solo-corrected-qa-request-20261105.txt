@@ -1,0 +1,1 @@
+One controlled macos-15-intel QA rerun after fixing TimelineView date-scope compiler error. Verify DUOCore tests, iOS Simulator build, unsigned iPhone IPA, six functional XCUITest flows. Keep accessibility audit separate. No signing, publication or installation.
