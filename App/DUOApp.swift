@@ -213,6 +213,27 @@ struct HomeView: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("openCoupleIdeas")
 
+
+                    NavigationLink { BudgetView().navigationTitle("Budget") } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "eurosign.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(Color("Accent"))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Notre budget").font(.headline)
+                                Text("Salaires, dépenses et épargne, en toute simplicité.")
+                                    .font(.caption)
+                                    .foregroundStyle(Color("SecondaryReadable"))
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption)
+                        }
+                        .foregroundStyle(Color("Text"))
+                        .duoPanel()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("openBudget")
+
                     sectionHeading("Actions rapides", detail: "En un geste")
                     HStack(spacing: 10) {
                         quickAction("Tâche", symbol: "checkmark.circle.badge.plus") { addTask = true }
@@ -503,5 +524,294 @@ struct CoupleIdeasView: View {
             selectedDate = Date()
         }
         .accessibilityIdentifier("coupleIdeasScreen")
+    }
+}
+
+
+// MARK: - Budget local privé (première étape, sans synchronisation bancaire)
+
+private enum BudgetKind: String, CaseIterable, Codable, Identifiable {
+    case income = "Revenu"
+    case expense = "Dépense"
+    case savings = "Épargne"
+    var id: String { rawValue }
+}
+
+private struct BudgetEntry: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var kind: BudgetKind
+    var cents: Int
+    var title: String
+    var person: String
+    var shared: Bool
+}
+
+private enum BudgetDisk {
+    private static func url() throws -> URL {
+        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appendingPathComponent("budget-v1.json")
+    }
+
+    static func load() throws -> [BudgetEntry] {
+        let file = try url()
+        guard FileManager.default.fileExists(atPath: file.path) else { return [] }
+        return try JSONDecoder().decode([BudgetEntry].self, from: Data(contentsOf: file))
+    }
+
+    static func save(_ entries: [BudgetEntry]) throws {
+        let data = try JSONEncoder().encode(entries)
+        // Protected local file: no bank credentials, analytics, or remote transmission.
+        try data.write(to: url(), options: [.atomic, .completeFileProtection])
+    }
+}
+
+struct BudgetView: View {
+    @State private var entries: [BudgetEntry] = []
+    @State private var loaded = false
+    @State private var selectedMonth = Date()
+    @State private var adding = false
+    @State private var kind: BudgetKind = .expense
+    @State private var amount = ""
+    @State private var person = "Théo"
+    @State private var shared = true
+    @State private var category = "Courses"
+    @State private var note = ""
+    @State private var transactionDate = Date()
+    @State private var error: String?
+
+    private var monthEntries: [BudgetEntry] {
+        entries.filter { Calendar.current.isDate($0.date, equalTo: selectedMonth, toGranularity: .month) }
+            .sorted { $0.date > $1.date }
+    }
+
+    private func total(_ kind: BudgetKind) -> Int {
+        monthEntries.filter { $0.kind == kind }.reduce(0) { $0 + $1.cents }
+    }
+
+    private var sharedExpenses: Int {
+        monthEntries.filter { $0.kind == .expense && $0.shared }.reduce(0) { $0 + $1.cents }
+    }
+
+    private var personalExpenses: Int {
+        monthEntries.filter { $0.kind == .expense && !$0.shared }.reduce(0) { $0 + $1.cents }
+    }
+
+    private var remaining: Int { total(.income) - total(.expense) - total(.savings) }
+
+    private var categories: [String] {
+        switch kind {
+        case .income: return ["Salaire", "Prime", "Remboursement", "Autre revenu"]
+        case .expense: return ["Courses", "Loyer", "Transport", "Factures", "Abonnements", "Santé", "Loisirs", "Autre"]
+        case .savings: return ["Épargne de précaution", "Investissement", "Autre épargne"]
+        }
+    }
+
+    var body: some View {
+        List {
+            Section {
+                DatePicker("Mois à consulter", selection: $selectedMonth, displayedComponents: .date)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Disponible estimé")
+                        .font(.caption)
+                        .foregroundStyle(Color("SecondaryReadable"))
+                    Text(euros(remaining))
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(remaining < 0 ? Color("Error") : Color("Text"))
+                        .accessibilityIdentifier("budgetRemaining")
+                    Text("Revenus saisis − dépenses − épargne versée")
+                        .font(.caption)
+                        .foregroundStyle(Color("SecondaryReadable"))
+                }
+                .padding(.vertical, 8)
+                HStack {
+                    summary("Revenus", cents: total(.income), symbol: "arrow.down.left")
+                    Spacer(minLength: 6)
+                    summary("Dépenses", cents: total(.expense), symbol: "arrow.up.right")
+                    Spacer(minLength: 6)
+                    summary("Épargne", cents: total(.savings), symbol: "shield")
+                }
+            } header: { Text("Vue mensuelle") }
+
+            Section("Vie commune") {
+                LabeledContent("Dépenses communes", value: euros(sharedExpenses))
+                LabeledContent("Dépenses personnelles", value: euros(personalExpenses))
+                Text("Les dépenses communes sont identifiées, sans calcul automatique de remboursement : votre règle de partage reste à choisir ensemble.")
+                    .font(.caption)
+                    .foregroundStyle(Color("SecondaryReadable"))
+            }
+
+            Section("Opérations") {
+                if monthEntries.isEmpty {
+                    ContentUnavailableView("Aucune opération",
+                                           systemImage: "eurosign.circle",
+                                           description: Text("Ajoutez vos revenus, dépenses et versements d’épargne."))
+                }
+                ForEach(monthEntries) { entry in
+                    HStack(spacing: 12) {
+                        Image(systemName: entry.kind == .income ? "arrow.down.left.circle" :
+                              entry.kind == .savings ? "shield.lefthalf.filled" : "arrow.up.right.circle")
+                            .foregroundStyle(Color("Accent"))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(entry.title).font(.subheadline.weight(.semibold))
+                            Text("\(entry.person) · \(entry.shared ? "Commun" : "Personnel") · \(entry.date.formatted(date: .abbreviated, time: .omitted))")
+                                .font(.caption)
+                                .foregroundStyle(Color("SecondaryReadable"))
+                        }
+                        Spacer(minLength: 4)
+                        Text((entry.kind == .income ? "+" : "−") + euros(entry.cents))
+                            .font(.subheadline.monospacedDigit())
+                    }
+                    .swipeActions {
+                        Button("Supprimer", role: .destructive) { remove(entry.id) }
+                    }
+                }
+            }
+
+            Section {
+                Label("Enregistré uniquement sur cet iPhone. Pas de connexion bancaire ni de partage automatique entre vos deux téléphones.", systemImage: "lock.iphone")
+                    .font(.caption)
+                    .foregroundStyle(Color("SecondaryReadable"))
+                Text("Le CET différé en brut n'est pas de l'argent disponible : ne l'ajoutez pas aux revenus ou à l'épargne versée.")
+                    .font(.caption)
+                    .foregroundStyle(Color("SecondaryReadable"))
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color("Background"))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { adding = true } label: { Image(systemName: "plus.circle.fill") }
+                    .accessibilityLabel("Ajouter une opération")
+                    .accessibilityIdentifier("addBudgetEntry")
+            }
+        }
+        .sheet(isPresented: $adding) { entryForm }
+        .alert("Budget", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("Compris") { error = nil }
+        } message: { Text(error ?? "") }
+        .onAppear {
+            guard !loaded else { return }
+            loaded = true
+            do { entries = try BudgetDisk.load() }
+            catch { self.error = "Impossible de lire le budget local : \(error.localizedDescription)" }
+        }
+    }
+
+    private func summary(_ title: String, cents: Int, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(title, systemImage: symbol)
+                .font(.caption2)
+                .foregroundStyle(Color("SecondaryReadable"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(euros(cents))
+                .font(.subheadline.bold().monospacedDigit())
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+        }
+    }
+
+    private var entryForm: some View {
+        NavigationStack {
+            Form {
+                Section("Opération") {
+                    Picker("Type", selection: $kind) {
+                        ForEach(BudgetKind.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
+                    }
+                    Picker("Catégorie", selection: $category) {
+                        ForEach(categories, id: \.self) { item in Text(item).tag(item) }
+                    }
+                    TextField("Montant en € (ex. 42,50)", text: $amount)
+                        .keyboardType(.decimalPad)
+                        .accessibilityIdentifier("budgetAmount")
+                    TextField("Note facultative", text: $note)
+                    DatePicker("Date", selection: $transactionDate, displayedComponents: .date)
+                }
+                Section("Qui est concerné ?") {
+                    Picker("Personne", selection: $person) {
+                        Text("Théo").tag("Théo")
+                        Text("Lilou").tag("Lilou")
+                    }
+                    if kind == .expense {
+                        Toggle("Dépense commune", isOn: $shared)
+                    }
+                }
+                Section {
+                    Text("Saisie manuelle, sans accès aux comptes bancaires. Pour l'épargne, indiquez uniquement les sommes réellement transférées.")
+                        .font(.caption)
+                        .foregroundStyle(Color("SecondaryReadable"))
+                }
+            }
+            .navigationTitle("Nouvelle opération")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { adding = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Enregistrer") { add() }
+                        .disabled(amountInCents(amount) == nil)
+                        .accessibilityIdentifier("saveBudgetEntry")
+                }
+            }
+            .onChange(of: kind) { _, _ in category = categories[0] }
+        }
+    }
+
+    private func add() {
+        guard let cents = amountInCents(amount) else {
+            error = "Indiquez un montant positif avec deux décimales maximum."
+            return
+        }
+        let trimmed = String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+        let title = trimmed.isEmpty ? category : category + " · " + trimmed
+        let item = BudgetEntry(id: UUID(), date: transactionDate, kind: kind, cents: cents,
+                               title: title, person: person, shared: kind == .expense && shared)
+        let updated = entries + [item]
+        do {
+            try BudgetDisk.save(updated)
+            entries = updated
+            adding = false
+            amount = ""
+            note = ""
+            transactionDate = Date()
+        } catch {
+            self.error = "Enregistrement impossible : \(error.localizedDescription)"
+        }
+    }
+
+    private func remove(_ id: UUID) {
+        let updated = entries.filter { $0.id != id }
+        do {
+            try BudgetDisk.save(updated)
+            entries = updated
+        } catch {
+            self.error = "Suppression impossible : \(error.localizedDescription)"
+        }
+    }
+
+    private func euros(_ cents: Int) -> String {
+        (Double(cents) / 100).formatted(.currency(code: "EUR").locale(Locale(identifier: "fr_FR")))
+    }
+
+    // Reject signs, exponents, thousands separators, extra decimals and overflow.
+    private func amountInCents(_ input: String) -> Int? {
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 1 || parts.count == 2 else { return nil }
+        let whole = String(parts[0])
+        guard !whole.isEmpty, whole.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let euros = Int(whole), euros <= 1_000_000 else { return nil }
+        let decimals = parts.count == 2 ? String(parts[1]) : ""
+        guard decimals.count <= 2,
+              decimals.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
+        let fractional = Int(decimals.padding(toLength: 2, withPad: "0", startingAt: 0)) ?? 0
+        let cents = euros * 100 + fractional
+        return cents > 0 ? cents : nil
     }
 }
