@@ -3,6 +3,7 @@ import DUOCore
 
 struct KitchenView: View {
     @Environment(AppStore.self) private var store
+    @State private var maxMinutes = 0
     @State private var search = ""; @State private var location = "Tous"; @State private var adding = false; @State private var planning = false
     var body: some View {
         List {
@@ -19,16 +20,19 @@ struct KitchenView: View {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(f.name).font(.headline)
                                 Text("\(f.quantity.formatted()) \(f.unit.label) · \(f.location)").foregroundStyle(Color("SecondaryReadable"))
-                                if let expiry = f.expiry { Text("À vérifier : " + expiry.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(expiry < Date() ? Color("Error") : Color("SecondaryReadable")) }
+                                if let expiry = f.expiry { Text("À vérifier : " + expiry.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(Calendar.current.startOfDay(for: expiry) < Calendar.current.startOfDay(for: Date()) ? Color("Error") : Color("SecondaryReadable")) }
                             }
                         }.swipeActions { Button("Supprimer", role: .destructive) { store.remove(row) } }
                     }
                 }
             }
             Section("À cuisiner") {
+                Picker("Temps disponible", selection: $maxMinutes) {
+                    Text("Sans limite").tag(0); Text("20 minutes").tag(20); Text("30 minutes").tag(30); Text("45 minutes").tag(45)
+                }
                 Button("Composer plusieurs dîners") { planning = true }
-                ForEach(store.suggestions) { recipe in NavigationLink { RecipeView(recipe: recipe) } label: { VStack(alignment: .leading) { Text(recipe.title); Text("\(recipe.preparation + recipe.cooking) min · \(MealEngine.missing(recipe.ingredients, stock: store.foods).count) ingrédient(s) à compléter").font(.caption).foregroundStyle(Color("SecondaryReadable")) } } }
-                if store.suggestions.isEmpty { Text("Aucune recette compatible avec vos exclusions.") }
+                ForEach(store.suggestions.filter { maxMinutes == 0 || $0.preparation + $0.cooking <= maxMinutes }) { recipe in NavigationLink { RecipeView(recipe: recipe) } label: { VStack(alignment: .leading) { Text(recipe.title); Text("\(recipe.preparation + recipe.cooking) min · \(MealEngine.missing(recipe.ingredients, stock: store.foods).count) ingrédient(s) à compléter").font(.caption).foregroundStyle(Color("SecondaryReadable")) } } }
+                if store.suggestions.filter({ maxMinutes == 0 || $0.preparation + $0.cooking <= maxMinutes }).isEmpty { Text("Aucune recette compatible avec vos exclusions et ce temps disponible.") }
             }
         }.searchable(text: $search, prompt: "Rechercher un aliment")
         .scrollContentBackground(.hidden).background(Color("Background"))
@@ -63,7 +67,7 @@ struct RecipeView: View {
             }
             Section("Prévoir ce repas") {
                 DatePicker("Date", selection: $date, displayedComponents: [.date])
-                Button("Ajouter au planning") { store.put(.meal(Meal(recipeID: recipe.id, date: date, portions: portions))); store.refreshShopping() }
+                Button("Ajouter au planning") { store.put(.meal(Meal(recipeID: recipe.id, date: date, portions: portions))) }
                 Text("Le stock n’est déduit qu’après confirmation dans le planning.").font(.caption)
             }
         }.navigationTitle("Recette").navigationBarTitleDisplayMode(.inline)

@@ -66,11 +66,23 @@ public enum MealEngine {
     }
     public static func suggestions(catalog: [Recipe], stock: [Food], exclusions: Set<String>, recent: [String], now: Date = Date()) -> [Recipe] {
         let excluded = Set(exclusions.map(normalized))
-        return catalog.filter { recipe in
+        let eligible = catalog.filter { recipe in
             !recipe.ingredients.contains { excluded.contains(normalized($0.name)) } && !recipe.allergens.contains { excluded.contains(normalized($0)) }
-        }.sorted { a, b in
-            func score(_ r: Recipe) -> Int { missing(r.ingredients, stock: stock, now: now).count * 10 + (recent.contains(r.id) ? 15 : 0) }
-            return score(a) == score(b) ? a.id < b.id : score(a) < score(b)
+        }
+        let today = Calendar.current.startOfDay(for: now)
+                let soon = Calendar.current.date(byAdding: .day, value: 3, to: today) ?? today
+                let urgentKeys = Set(stock.filter { food in
+                    guard food.quantity > 0, let expiry = food.expiry else { return false }
+                    return expiry >= today && expiry < soon
+                }.map { Ingredient($0.name, 0, $0.unit).key })
+        func score(_ r: Recipe) -> Int {
+                let urgentCount = Set(r.ingredients.map(\.key)).intersection(urgentKeys).count
+                return missing(r.ingredients, stock: stock, now: now).count * 10 + (recent.contains(r.id) ? 15 : 0) - urgentCount * 6
+            }
+        let scores = Dictionary(uniqueKeysWithValues: eligible.map { ($0.id, score($0)) })
+        return eligible.sorted { a, b in
+            let first = scores[a.id, default: 0], second = scores[b.id, default: 0]
+            return first == second ? a.id < b.id : first < second
         }
     }
     // Greedy, deterministic heuristic. Never claims a global minimum or a verified budget without prices.

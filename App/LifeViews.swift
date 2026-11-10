@@ -3,6 +3,7 @@ import DUOCore
 
 struct PlanningView: View {
     @Environment(AppStore.self) private var store
+    @State private var editingMeal: Record?
     @State private var date = Date(); @State private var week = false; @State private var adding = false; @State private var cooking: Record?
     private var interval: DateInterval { Calendar.current.dateInterval(of: week ? .weekOfYear : .day, for: date)! }
     private var events: [Record] { store.records.filter { if case .event(let e) = $0.payload { return e.start < interval.end && e.end > interval.start }; return false }.sorted { a,b in if case .event(let x) = a.payload, case .event(let y) = b.payload { return x.start < y.start }; return false } }
@@ -33,12 +34,13 @@ struct PlanningView: View {
                             Text("\(meal.portions) portions · " + meal.date.formatted(date: .abbreviated, time: .omitted)).font(.caption)
                             if meal.cooked { Label("Cuisiné", systemImage: "checkmark.circle") }
                             else {
+                                Button("Modifier la date ou les portions") { editingMeal = row }.buttonStyle(.borderless)
                                 Button("Nous avons cuisiné ce repas") { cooking = row }.buttonStyle(.borderless)
                                 Menu("Remplacer la recette") {
-                                    ForEach(store.suggestions.filter { $0.id != meal.recipeID }) { alternative in Button(alternative.title) { var changed = meal; changed.recipeID = alternative.id; store.put(.meal(changed), editing: row); store.refreshShopping() } }
+                                    ForEach(store.suggestions.filter { $0.id != meal.recipeID }) { alternative in Button(alternative.title) { var changed = meal; changed.recipeID = alternative.id; store.put(.meal(changed), editing: row) } }
                                 }.buttonStyle(.borderless)
                             }
-                        }.swipeActions { Button("Supprimer", role: .destructive) { store.remove(row); store.refreshShopping() } }
+                        }.swipeActions { Button("Supprimer", role: .destructive) { store.remove(row) } }
                     }
                 }
             }
@@ -46,6 +48,7 @@ struct PlanningView: View {
                 ForEach(store.records.filter { if case .task(let t) = $0.payload, let due = t.due { return t.completed == nil && interval.contains(due) }; return false }) { row in if case .task(let t) = row.payload { Button(t.title) { store.toggle(row) } } }
             }
         }.sheet(isPresented: $adding) { NavigationStack { ItemEditor(kind: "event") } }
+        .sheet(item: $editingMeal) { row in NavigationStack { PlannedMealEditor(row: row) } }
         .confirmationDialog("Confirmer les quantités utilisées et déduire le stock ?", isPresented: Binding(get: { cooking != nil }, set: { if !$0 { cooking = nil } }), titleVisibility: .visible) {
             Button("Confirmer et déduire le stock") { if let cooking { store.cook(cooking) }; cooking = nil }
             Button("Annuler", role: .cancel) { cooking = nil }
@@ -73,6 +76,17 @@ struct HouseholdView: View {
                     Text("À faire").tag(false)
                     Text("Terminées").tag(true)
                 }.pickerStyle(.segmented).accessibilityIdentifier("taskHistory")
+            }
+            Section("Répartition cette semaine") {
+                let interval = Calendar.current.dateInterval(of: .weekOfYear, for: Date())
+                ForEach([store.snapshot.userID.uuidString, "partner-of:" + store.snapshot.userID.uuidString, "Ensemble"], id: \.self) { person in
+                    let count = store.records.filter { row in
+                        guard case .task(let task) = row.payload, task.assignee == person, let completed = task.completed else { return false }
+                        return interval?.contains(completed) == true
+                    }.count
+                    LabeledContent(store.assigneeLabel(person), value: "\(count) tâche(s) terminée(s)")
+                }
+                Text("Nombre de tâches enregistrées, sans estimation de leur durée ou de leur difficulté.").font(.caption)
             }
             Section(history ? "Actions accomplies" : "À faire, à votre rythme") {
                 let tasks = store.records.filter {
@@ -102,7 +116,7 @@ struct HouseholdView: View {
                                 .accessibilityLabel("Rouvrir \(t.title)")
                             }
                             NavigationLink { ItemEditor(kind: "task", row: row) } label: {
-                                VStack(alignment: .leading, spacing: 4) { Text(t.title); Text(DUORelease.soloOnly ? "Sur cet iPhone" : store.assigneeLabel(t.assignee)).font(.caption).foregroundStyle(Color("SecondaryReadable")); if let due = t.due { Text(due.formatted(date: .abbreviated, time: .shortened)).font(.caption) }; if let done = t.completed { Text("Terminée " + done.formatted(date: .abbreviated, time: .shortened)).font(.caption) } }
+                                VStack(alignment: .leading, spacing: 4) { Text(t.title); Text(store.assigneeLabel(t.assignee)).font(.caption).foregroundStyle(Color("SecondaryReadable")); if let due = t.due { Text(due.formatted(date: .abbreviated, time: .shortened)).font(.caption); if t.completed == nil && due < Date() { Label("En retard", systemImage: "clock.badge.exclamationmark").font(.caption).foregroundStyle(Color("Error")) } }; if let done = t.completed { Text("Terminée " + done.formatted(date: .abbreviated, time: .shortened)).font(.caption) } }
                             }
                         }.accessibilityElement(children: .contain)
                         .contextMenu { if !history { Button("Me rappeler à l’échéance") { Task { await store.remind(row) } } } }
@@ -175,5 +189,33 @@ struct HabitsView: View {
         }.navigationTitle("À votre rythme")
         .sheet(isPresented: $addHabit) { NavigationStack { ItemEditor(kind: "habit") } }
         .sheet(isPresented: $addSport) { NavigationStack { ItemEditor(kind: "sport") } }
+    }
+}
+
+struct PlannedMealEditor: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    let row: Record
+    @State private var date = Date()
+    @State private var portions = 2
+    @State private var loaded = false
+    var body: some View {
+        Form {
+            DatePicker("Date du repas", selection: $date, displayedComponents: .date)
+            Stepper("\(portions) portions", value: $portions, in: 1...12)
+            Text("Les courses seront recalculées. Le stock sera déduit seulement à la confirmation de préparation.").font(.caption)
+            if let error = store.error { Text(error).foregroundStyle(Color("Error")) }
+            Button("Enregistrer") {
+                guard case .meal(var meal) = row.payload, !meal.cooked else { return }
+                meal.date = date; meal.portions = portions
+                store.put(.meal(meal), editing: row)
+                if store.error == nil { dismiss() }
+            }.accessibilityIdentifier("savePlannedMeal")
+        }.navigationTitle("Modifier le repas")
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } } }
+        .onAppear {
+            guard !loaded, case .meal(let meal) = row.payload else { return }
+            loaded = true; date = meal.date; portions = meal.portions
+        }
     }
 }

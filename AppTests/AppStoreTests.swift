@@ -81,4 +81,58 @@ import DUOCore
         guard case .habit(let undone) = store.records[0].payload else { return XCTFail() }
         XCTAssertEqual(undone.progress(at: Date()), 0)
     }
+
+    func testBudgetAndBalancesPersistAndExportWithHouseholdData() throws {
+        let scope = "unit-" + UUID().uuidString
+        let store = AppStore(scopeOverride: scope)
+        store.transact {
+            $0.manualBudget = [.init(date: Date(), kind: .expense, cents: 2000, title: "Courses", person: "Lilou", shared: true)]
+            $0.manualAccounts = [.init(name: "CIC", type: .checking, cents: 10000, observedAt: Date())]
+        }
+        XCTAssertNil(store.error)
+        let reopened = AppStore(scopeOverride: scope)
+        XCTAssertEqual(reopened.snapshot.manualBudget, store.snapshot.manualBudget)
+        XCTAssertEqual(reopened.snapshot.manualAccounts, store.snapshot.manualAccounts)
+        let backup = try store.previewLocalImport(from: store.prepareExport())
+        store.transact { $0.manualBudget = []; $0.manualAccounts = [] }
+        try store.restoreLocalImport(backup)
+        XCTAssertEqual(store.snapshot.manualBudget, backup.manualBudget)
+        XCTAssertEqual(store.snapshot.manualAccounts, backup.manualAccounts)
+    }
+    func testCookingStaleConfirmationNeverConsumesTwice() throws {
+        let store = fresh()
+        let recipe = try XCTUnwrap(Catalog.recipes.first)
+        for ingredient in recipe.ingredients {
+            store.put(.food(Food(name: ingredient.name, quantity: ingredient.quantity * 3, unit: ingredient.unit)))
+        }
+        let meal = Meal(recipeID: recipe.id, date: Date(), portions: recipe.portions)
+        store.put(.meal(meal))
+        let row = try XCTUnwrap(store.records.first { if case .meal = $0.payload { return true }; return false })
+        store.cook(row); XCTAssertNil(store.error)
+        let stocks = store.foods
+        store.cook(row)
+        XCTAssertNotNil(store.error); XCTAssertEqual(store.foods, stocks)
+    }
+    func testMealDateAndPortionsRebuildShoppingAtomically() throws {
+        let store = fresh(), recipe = try XCTUnwrap(Catalog.recipes.first)
+        store.put(.meal(Meal(recipeID: recipe.id, date: Date(), portions: 2)))
+        XCTAssertNil(store.error)
+        let row = try XCTUnwrap(store.records.first { if case .meal = $0.payload { return true }; return false })
+        var changed = Meal(recipeID: recipe.id, date: Date().addingTimeInterval(86400), portions: 4)
+        store.put(.meal(changed), editing: row); XCTAssertNil(store.error)
+        let before = store.snapshot.records
+        changed.portions = 0
+        let current = try XCTUnwrap(store.records.first { $0.id == row.id })
+        store.put(.meal(changed), editing: current)
+        XCTAssertNotNil(store.error); XCTAssertEqual(store.snapshot.records, before)
+    }
+
+    func testLegacyRestoreKeepsLocalFinancialData() throws {
+        let store = fresh()
+        let oldBackup = store.snapshot
+        store.transact { $0.manualBudget = [.init(date: Date(), kind: .income, cents: 1000, title: "Salaire", person: "Théo")] }
+        let budget = store.snapshot.manualBudget
+        try store.restoreLocalImport(oldBackup)
+        XCTAssertEqual(store.snapshot.manualBudget, budget)
+    }
 }

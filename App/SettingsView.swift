@@ -135,6 +135,7 @@ struct SettingsView: View {
                     do { exportURL = try store.prepareExport() }
                     catch { store.error = error.localizedDescription }
                 }.disabled(!store.ready || store.syncing)
+                Text("L’export contient aussi le budget et les soldes manuels : gardez-le dans un emplacement privé. Une ancienne sauvegarde sans finances conserve vos finances actuelles.").font(.caption)
                 if let exportURL {
                     ShareLink(item: exportURL) { Label("Enregistrer ou partager l’export", systemImage: "square.and.arrow.up") }
                 }

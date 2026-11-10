@@ -101,7 +101,7 @@ struct HomeView: View {
     }
 
     private func dueTasks(on date: Date) -> [Record] {
-        let endOfDay = Calendar.current.startOfDay(for: date).addingTimeInterval(86400)
+        let endOfDay = Calendar.current.dateInterval(of: .day, for: date)?.end ?? date
         return pendingTasks.filter { row in
             guard case .task(let task) = row.payload else { return false }
             return task.due == nil || task.due! < endOfDay
@@ -530,24 +530,7 @@ struct CoupleIdeasView: View {
 
 // MARK: - Budget local privé (première étape, sans synchronisation bancaire)
 
-private enum BudgetKind: String, CaseIterable, Codable, Identifiable {
-    case income = "Revenu"
-    case expense = "Dépense"
-    case savings = "Épargne"
-    var id: String { rawValue }
-}
-
-private struct BudgetEntry: Identifiable, Codable {
-    var id: UUID
-    var date: Date
-    var kind: BudgetKind
-    var cents: Int
-    var title: String
-    var person: String
-    var shared: Bool
-}
-
-private enum BudgetDisk {
+enum BudgetDisk {
     private static func url() throws -> URL {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -568,8 +551,9 @@ private enum BudgetDisk {
 }
 
 struct BudgetView: View {
-    @State private var entries: [BudgetEntry] = []
-    @State private var loaded = false
+    @Environment(AppStore.self) private var store
+    private var entries: [BudgetEntry] { store.snapshot.manualBudget ?? [] }
+    @State private var editingID: UUID?
     @State private var selectedMonth = Date()
     @State private var adding = false
     @State private var kind: BudgetKind = .expense
@@ -611,16 +595,17 @@ struct BudgetView: View {
     var body: some View {
         List {
             Section {
+                if let warning = store.budgetImportError { Text(warning).foregroundStyle(Color("Error")) }
                 DatePicker("Mois à consulter", selection: $selectedMonth, displayedComponents: .date)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Disponible estimé")
+                    Text("Reste du budget saisi")
                         .font(.caption)
                         .foregroundStyle(Color("SecondaryReadable"))
                     Text(euros(remaining))
                         .font(.largeTitle.bold())
                         .foregroundStyle(remaining < 0 ? Color("Error") : Color("Text"))
                         .accessibilityIdentifier("budgetRemaining")
-                    Text("Revenus saisis − dépenses − épargne versée")
+                    Text("Revenus saisis − dépenses − versements d’épargne. Ce calcul n’est pas un solde bancaire.")
                         .font(.caption)
                         .foregroundStyle(Color("SecondaryReadable"))
                 }
@@ -634,6 +619,10 @@ struct BudgetView: View {
                 }
             } header: { Text("Vue mensuelle") }
 
+            Section {
+                NavigationLink { ManualAccountsView() } label: { Label("Mes soldes manuels datés", systemImage: "building.columns") }
+                Text("Comptes, épargne, placements et CET restent séparés du budget mensuel. Aucun solde n’est déduit automatiquement des opérations saisies.").font(.caption)
+            }
             Section("Vie commune") {
                 LabeledContent("Dépenses communes", value: euros(sharedExpenses))
                 LabeledContent("Dépenses personnelles", value: euros(personalExpenses))
@@ -665,6 +654,7 @@ struct BudgetView: View {
                     }
                     .swipeActions {
                         Button("Supprimer", role: .destructive) { remove(entry.id) }
+                        Button("Modifier") { edit(entry) }.tint(Color("Accent"))
                     }
                 }
             }
@@ -682,21 +672,17 @@ struct BudgetView: View {
         .background(Color("Background"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { adding = true } label: { Image(systemName: "plus.circle.fill") }
+                Button { editingID = nil; amount = ""; note = ""; transactionDate = Date(); adding = true } label: { Image(systemName: "plus.circle.fill") }
                     .accessibilityLabel("Ajouter une opération")
                     .accessibilityIdentifier("addBudgetEntry")
+                    .disabled(store.budgetImportError != nil)
             }
         }
         .sheet(isPresented: $adding) { entryForm }
         .alert("Budget", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("Compris") { error = nil }
         } message: { Text(error ?? "") }
-        .onAppear {
-            guard !loaded else { return }
-            loaded = true
-            do { entries = try BudgetDisk.load() }
-            catch { self.error = "Impossible de lire le budget local : \(error.localizedDescription)" }
-        }
+
     }
 
     private func summary(_ title: String, cents: Int, symbol: String) -> some View {
@@ -729,7 +715,7 @@ struct BudgetView: View {
                         .keyboardType(.decimalPad)
                         .accessibilityIdentifier("budgetAmount")
                     TextField("Note facultative", text: $note)
-                    DatePicker("Date", selection: $transactionDate, displayedComponents: .date)
+                    DatePicker("Date", selection: $transactionDate, in: ...Date(), displayedComponents: .date)
                 }
                 Section("Qui est concerné ?") {
                     Picker("Personne", selection: $person) {
@@ -741,12 +727,12 @@ struct BudgetView: View {
                     }
                 }
                 Section {
-                    Text("Saisie manuelle, sans accès aux comptes bancaires. Pour l'épargne, indiquez uniquement les sommes réellement transférées.")
+                    Text("Saisie manuelle des opérations déjà effectuées, sans accès bancaire. Un virement entre comptes courants n’est ni un revenu ni une dépense. Pour l’épargne, indiquez le versement une seule fois.")
                         .font(.caption)
                         .foregroundStyle(Color("SecondaryReadable"))
                 }
             }
-            .navigationTitle("Nouvelle opération")
+            .navigationTitle(editingID == nil ? "Nouvelle opération" : "Modifier l’opération")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -758,7 +744,7 @@ struct BudgetView: View {
                         .accessibilityIdentifier("saveBudgetEntry")
                 }
             }
-            .onChange(of: kind) { _, _ in category = categories[0] }
+            .onChange(of: kind) { _, _ in if !categories.contains(category) { category = categories[0] } }
         }
     }
 
@@ -769,12 +755,11 @@ struct BudgetView: View {
         }
         let trimmed = String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
         let title = trimmed.isEmpty ? category : category + " · " + trimmed
-        let item = BudgetEntry(id: UUID(), date: transactionDate, kind: kind, cents: cents,
+        let item = BudgetEntry(id: editingID ?? UUID(), date: transactionDate, kind: kind, cents: cents,
                                title: title, person: person, shared: kind == .expense && shared)
-        let updated = entries + [item]
+        let updated = entries.filter { $0.id != item.id } + [item]
         do {
-            try BudgetDisk.save(updated)
-            entries = updated
+            try save(updated)
             adding = false
             amount = ""
             note = ""
@@ -787,8 +772,7 @@ struct BudgetView: View {
     private func remove(_ id: UUID) {
         let updated = entries.filter { $0.id != id }
         do {
-            try BudgetDisk.save(updated)
-            entries = updated
+            try save(updated)
         } catch {
             self.error = "Suppression impossible : \(error.localizedDescription)"
         }
@@ -798,20 +782,100 @@ struct BudgetView: View {
         (Double(cents) / 100).formatted(.currency(code: "EUR").locale(Locale(identifier: "fr_FR")))
     }
 
-    // Reject signs, exponents, thousands separators, extra decimals and overflow.
-    private func amountInCents(_ input: String) -> Int? {
-        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: ",", with: ".")
-        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 1 || parts.count == 2 else { return nil }
-        let whole = String(parts[0])
-        guard !whole.isEmpty, whole.allSatisfy({ $0.isASCII && $0.isNumber }),
-              let euros = Int(whole), euros <= 1_000_000 else { return nil }
-        let decimals = parts.count == 2 ? String(parts[1]) : ""
-        guard decimals.count <= 2,
-              decimals.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
-        let fractional = Int(decimals.padding(toLength: 2, withPad: "0", startingAt: 0)) ?? 0
-        let cents = euros * 100 + fractional
-        return cents > 0 ? cents : nil
+    private func amountInCents(_ input: String) -> Int? { ManualBudget.amountInCents(input) }
+    private func save(_ updated: [BudgetEntry]) throws {
+        try ManualBudget.validate(updated)
+        store.transact { $0.manualBudget = updated }
+        if let error = store.error { throw DuoError.invalid(error) }
+    }
+    private func edit(_ entry: BudgetEntry) {
+        editingID = entry.id; kind = entry.kind
+        amount = String(format: "%d.%02d", entry.cents / 100, entry.cents % 100)
+        person = entry.person; shared = entry.shared; transactionDate = entry.date
+        category = categories.first(where: { entry.title == $0 || entry.title.hasPrefix($0 + " · ") }) ?? categories[0]
+        note = entry.title == category ? "" : entry.title.replacingOccurrences(of: category + " · ", with: "")
+        adding = true
+    }
+}
+
+struct ManualAccountsView: View {
+    @Environment(AppStore.self) private var store
+    @State private var editing = false
+    @State private var accountID = UUID()
+    @State private var name = ""
+    @State private var kind = FinancialAccountType.checking
+    @State private var amount = ""
+    @State private var overdraft = false
+    @State private var observed = Date()
+    private var accounts: [ManualFinancialAccount] { store.snapshot.manualAccounts ?? [] }
+    private let kinds: [FinancialAccountType] = [.checking, .savings, .investment, .deferredGrossCET]
+    private func label(_ kind: FinancialAccountType) -> String {
+        switch kind { case .checking: return "Compte courant"; case .savings: return "Épargne bancaire"; case .investment: return "Investissement"; case .deferredGrossCET: return "CET brut différé"; case .debt: return "Dette" }
+    }
+    private func money(_ cents: Int64) -> String { (Double(cents) / 100).formatted(.currency(code: "EUR")) }
+    private var summary: FinanceLedgerSummary? {
+        try? FinanceLedger.summarize(accounts: accounts.map { $0.ledgerSnapshot(owner: store.snapshot.userID) }, transactions: [], allocations: [], now: Date(), includeManualBalances: true)
+    }
+    var body: some View {
+        List {
+            Section {
+                Text("Soldes saisis manuellement, à vérifier dans vos banques. Aucune connexion bancaire. Ces données restent sur cet iPhone et dans vos exports locaux.").font(.caption)
+                if let summary {
+                    LabeledContent("Comptes courants", value: money(summary.checkingCents))
+                    LabeledContent("Épargne bancaire", value: money(summary.savingsCents))
+                    LabeledContent("Investissements", value: money(summary.investmentsCents))
+                    LabeledContent("CET brut différé", value: money(summary.deferredCETGrossCents))
+                    Text("Le CET et les placements ne sont pas de l’argent disponible aujourd’hui. Un virement entre vos comptes ne crée pas de revenu.").font(.caption)
+                }
+            }
+            Section("Comptes enregistrés") {
+                ForEach(accounts) { account in
+                    Button {
+                        accountID = account.id; name = account.name; kind = account.type
+                        amount = String(format: "%.2f", Double(abs(account.cents)) / 100)
+                        overdraft = account.cents < 0; observed = account.observedAt; editing = true
+                    } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(account.name).font(.headline)
+                            Text(label(account.type) + " · " + money(account.cents))
+                            Text("Manuel · relevé le " + account.observedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption)
+                            if summary?.staleAccountIDs.contains(account.id.uuidString) == true {
+                                Label("À actualiser", systemImage: "clock").font(.caption)
+                            }
+                        }
+                    }.swipeActions { Button("Supprimer", role: .destructive) { save(accounts.filter { $0.id != account.id }) } }
+                }
+                Button("Ajouter un compte manuel") {
+                    accountID = UUID(); name = ""; amount = ""; overdraft = false; kind = .checking; observed = Date(); editing = true
+                }
+            }
+        }.navigationTitle("Mes soldes manuels")
+        .sheet(isPresented: $editing) {
+            NavigationStack {
+                Form {
+                    TextField("Nom (ex. CIC personnel)", text: $name)
+                    Picker("Type", selection: $kind) { ForEach(kinds, id: \.self) { Text(label($0)).tag($0) } }
+                    TextField("Solde en euros (0 autorisé)", text: $amount).keyboardType(.decimalPad)
+                    if kind == .checking { Toggle("Compte à découvert", isOn: $overdraft) }
+                    DatePicker("Relevé le", selection: $observed, in: ...Date())
+                    Text("Ne saisissez aucun numéro de compte ni identifiant bancaire. Ajoutez chaque compte une seule fois.").font(.caption)
+                    if let error = store.error { Text(error).foregroundStyle(Color("Error")) }
+                    Button("Enregistrer") {
+                        guard let value = parsedAmount else { return }
+                        let item = ManualFinancialAccount(id: accountID, name: name.trimmingCharacters(in: .whitespacesAndNewlines), type: kind, cents: Int64(value) * (kind == .checking && overdraft ? -1 : 1), observedAt: observed)
+                        save(accounts.filter { $0.id != accountID } + [item])
+                        if store.error == nil { editing = false }
+                    }.disabled(parsedAmount == nil || normalized(name).isEmpty)
+                }.navigationTitle("Solde manuel")
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fermer") { editing = false } } }
+            }
+        }
+    }
+    private var parsedAmount: Int? {
+        if ["0", "0,00", "0.00"].contains(amount.trimmingCharacters(in: .whitespacesAndNewlines)) { return 0 }
+        return ManualBudget.amountInCents(amount)
+    }
+    private func save(_ values: [ManualFinancialAccount]) {
+        store.transact { snapshot in try ManualFinancialAccount.validate(values); snapshot.manualAccounts = values }
     }
 }

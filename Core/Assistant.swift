@@ -155,7 +155,12 @@ public enum DuoAssistant {
         if let range = result.range(of: "demain") { result = String(result[..<range.lowerBound]) }
         result = result.trimmingCharacters(in: .whitespacesAndNewlines)
         for prefix in ["le ", "la ", "les ", "l'", "mon ", "ma ", "notre ", "un ", "une "] where result.hasPrefix(prefix) { result.removeFirst(prefix.count); break }
-        for suffix in [" a ", " au ", " pour "] where result.hasSuffix(suffix.trimmingCharacters(in:.whitespaces)) { result = String(result.dropLast(suffix.trimmingCharacters(in:.whitespaces).count)); break }
+        // Remove a trailing preposition only as a complete word, never the last
+        // letter of a title such as "Yoga" or "Pasta".
+        for suffix in [" a", " au", " pour"] where result.hasSuffix(suffix) {
+            result.removeLast(suffix.count)
+            break
+        }
         return result.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
     }
 }

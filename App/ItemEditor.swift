@@ -25,11 +25,12 @@ struct ItemEditor: View {
                 Text("Utilisez le même nom que dans les recettes : carotte, riz, œufs… Les variantes de produits ne sont pas substituées automatiquement.").font(.caption)
             }
             if kind == "task" {
-                if DUORelease.soloOnly {
-                    Label("Tâche personnelle", systemImage: "iphone").font(.subheadline)
-                } else {
-                    Picker("Attribution", selection: $assignee) { Text("Ensemble").tag("Ensemble"); Text("Moi").tag(store.snapshot.userID.uuidString); Text("Mon partenaire").tag("partner-of:" + store.snapshot.userID.uuidString) }
+                Picker("Attribution", selection: $assignee) {
+                    Text("Ensemble").tag("Ensemble")
+                    Text(DUORelease.soloOnly ? "Théo" : "Moi").tag(store.snapshot.userID.uuidString)
+                    Text(DUORelease.soloOnly ? "Lilou" : "Mon partenaire").tag("partner-of:" + store.snapshot.userID.uuidString)
                 }
+                if DUORelease.soloOnly { Text("Répartition sur cet iPhone ; aucun envoi à l’autre téléphone.").font(.caption) }
                 Toggle("Échéance", isOn: $hasDate)
                 if hasDate { DatePicker("À faire avant", selection: $start) }
                 Stepper(repeatDays == 0 ? "Sans récurrence" : "Tous les \(repeatDays) jour(s)", value: $repeatDays, in: 0...365)
@@ -86,7 +87,7 @@ struct ItemEditor: View {
             var s = Shopping(ingredient: Ingredient(name, quantity, unit)); s.category = category
             if case .shopping(let old) = row?.payload { s.checked = old.checked; s.generated = false }; payload = .shopping(s)
         case "task":
-            let ownerLabel = DUORelease.soloOnly && row == nil ? store.snapshot.userID.uuidString : assignee
+            let ownerLabel = assignee
             var t = HouseTask(title: name, assignee: ownerLabel, due: hasDate ? start : nil, repeatDays: repeatDays)
             if case .task(let old) = row?.payload { t.completed = old.completed }; payload = .task(t)
         case "habit":

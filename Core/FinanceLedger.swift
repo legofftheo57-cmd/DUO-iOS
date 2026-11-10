@@ -96,8 +96,9 @@ public enum FinanceLedger {
                                  transactions: [FinancialTransaction],
                                  allocations: [FinancialGoalAllocation],
                                  now: Date,
-                                 freshnessThreshold: TimeInterval = 24 * 3600) throws -> FinanceLedgerSummary {
-        guard freshnessThreshold > 0 else { throw FinanceLedgerError.invalidData }
+                                 freshnessThreshold: TimeInterval = 24 * 3600,
+                                 includeManualBalances: Bool = false) throws -> FinanceLedgerSummary {
+        guard freshnessThreshold.isFinite, freshnessThreshold > 0, now.timeIntervalSince1970.isFinite else { throw FinanceLedgerError.invalidData }
         var accountsByID: [String: FinancialAccountSnapshot] = [:]
         var checking: Int64 = 0
         var savings: Int64 = 0
@@ -105,11 +106,11 @@ public enum FinanceLedger {
         var cet: Int64 = 0
         var stale: [String] = []
         for account in accounts {
-            guard !account.id.isEmpty, !account.ownerID.isEmpty else { throw FinanceLedgerError.invalidData }
+            guard !account.id.isEmpty, !account.ownerID.isEmpty, account.observedAt.timeIntervalSince1970.isFinite else { throw FinanceLedgerError.invalidData }
             guard account.currency == "EUR" else { throw FinanceLedgerError.unsupportedCurrency }
             guard accountsByID[account.id] == nil else { throw FinanceLedgerError.duplicateAccount }
             accountsByID[account.id] = account
-            if account.source == .bank {
+            if account.source == .bank || (includeManualBalances && account.type != .deferredGrossCET) {
                 if account.observedAt > now || now.timeIntervalSince(account.observedAt) > freshnessThreshold {
                     stale.append(account.id)
                 }
@@ -129,7 +130,7 @@ public enum FinanceLedger {
         for a in allocations {
             guard a.reservedCents >= 0, !a.goalID.isEmpty,
                   let account = accountsByID[a.accountID] else { throw FinanceLedgerError.unknownAccount }
-            guard account.source == .bank, account.type == .checking || account.type == .savings else {
+            guard (account.source == .bank || includeManualBalances), account.type == .checking || account.type == .savings else {
                 throw FinanceLedgerError.invalidData
             }
             reservedByAccount[a.accountID] = try add(reservedByAccount[a.accountID] ?? 0, a.reservedCents)

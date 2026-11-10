@@ -5,6 +5,7 @@ import UserNotifications
 
 @MainActor @Observable final class AppStore {
     var snapshot = Snapshot(); var error: String?; var status = "Sur cet iPhone"; var syncing = false; var ready = false
+    var budgetImportError: String?
     var lastSuccessfulSync: Date?
     var backend: Backend?; var pendingInvitation: String?; private var disk: DiskStore?
     var records: [Record] { snapshot.records.filter { !$0.deleted } }
@@ -15,6 +16,16 @@ import UserNotifications
     init(scopeOverride: String? = nil) {
         pendingInvitation = InviteVault.load()
         do { let args = ProcessInfo.processInfo.arguments; let index = args.firstIndex(of: "-duo-ui-test"); let scope = index != nil && args.count > index! + 1 ? "ui-test-" + args[index! + 1] : "local"; let local = try DiskStore(scope: scopeOverride ?? scope); snapshot = try local.read() ?? Snapshot(); disk = local; ready = true
+            if scopeOverride == nil && index == nil && snapshot.manualBudget == nil {
+                do {
+                    let legacy = try BudgetDisk.load()
+                    try ManualBudget.validate(legacy)
+                    var migrated = snapshot; migrated.manualBudget = legacy
+                    try local.write(migrated); snapshot = migrated
+                } catch {
+                    budgetImportError = "Ancien budget illisible : fichier conservé, saisie budgétaire suspendue. " + error.localizedDescription
+                }
+            }
             if scopeOverride == nil && index == nil && snapshot.coupleDay == nil,
                let day = UserDefaults.standard.string(forKey: "duo.couple.completedDay") {
                 snapshot.coupleDay = day
@@ -23,7 +34,7 @@ import UserNotifications
                 UserDefaults.standard.removeObject(forKey: "duo.couple.completedDay")
                 UserDefaults.standard.removeObject(forKey: "duo.couple.completedIndices")
             } }
-        catch { self.error = error.localizedDescription }
+        catch { ready = false; self.error = error.localizedDescription }
         // A saved session is not used to send local data. Reconnection selects an isolated user cache.
     }
     func transact(_ change: (inout Snapshot) throws -> Void) {
@@ -34,6 +45,8 @@ import UserNotifications
     }
     func put(_ payload: Content, editing row: Record? = nil, isPrivate: Bool = false) {
         transact { s in
+            if case .shopping(let item) = payload { try s.putShopping(item, editing: row); return }
+            if let row { _ = try s.current(row) }
             var row = row ?? Record(householdID: s.householdID, ownerID: isPrivate ? s.userID : nil, payload: payload)
             if case .food(let food) = payload {
                 let duplicate = s.records.contains { other in
@@ -43,23 +56,18 @@ import UserNotifications
                 guard !duplicate else { throw DuoError.invalid("Cet aliment existe déjà avec le même emplacement et la même date. Modifiez sa quantité.") }
             }
             row.payload = payload; try s.put(row)
+            if case .meal = payload { try rebuildShopping(&s) }
         }
         if error == nil, let row { UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [row.id.uuidString]) }
     }
-    func remove(_ row: Record) { transact { s in var r = row; r.deleted = true; try s.put(r) }; if error == nil { UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [row.id.uuidString]) } }
+    func remove(_ row: Record) { transact { s in var r = try s.current(row); r.deleted = true; try s.put(r); if case .meal = r.payload { try rebuildShopping(&s) } }; if error == nil { UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [row.id.uuidString]) } }
     func toggle(_ row: Record) {
         transact { s in
-            var r = row
+            var r = try s.current(row)
             switch r.payload {
             case .shopping(var item): item.checked.toggle(); r.payload = .shopping(item)
-            case .task(var task):
-                guard task.completed == nil else { return }
-                let now = Date(); task.completed = now; r.payload = .task(task)
-                if let due = TimeRules.nextDue(task, completion: now) {
-                    let next = HouseTask(title: task.title, assignee: task.assignee, due: due, repeatDays: task.repeatDays)
-                    let nextID = TimeRules.nextTaskID(r.id)
-                    try s.put(Record(id: nextID, householdID: s.householdID, ownerID: r.ownerID, payload: .task(next)))
-                }
+            case .task:
+                try s.completeTask(r); return
             case .habit(var habit):
                 let today = Calendar.current.startOfDay(for: Date())
                 if habit.completions.contains(where: { Calendar.current.isDate($0, inSameDayAs: today) }) { habit.completions.removeAll { Calendar.current.isDate($0, inSameDayAs: today) } }
@@ -73,33 +81,7 @@ import UserNotifications
     /// Reopens a completed chore. For recurring chores, only an untouched future
     /// occurrence generated by this completion may be removed automatically.
     func reopenTask(_ row: Record) {
-        transact { s in
-            guard case .task(var task) = row.payload, let completedAt = task.completed else {
-                throw DuoError.invalid("Cette tâche n’est pas terminée.")
-            }
-            if task.repeatDays > 0 {
-                let successorID = TimeRules.nextTaskID(row.id)
-                if let successor = s.records.first(where: { $0.id == successorID && !$0.deleted }) {
-                    let expectedDate = TimeRules.nextDue(task, completion: completedAt)
-                    guard case .task(let following) = successor.payload,
-                          successor.revision == 0,
-                          following.completed == nil,
-                          following.title == task.title,
-                          following.assignee == task.assignee,
-                          following.repeatDays == task.repeatDays,
-                          following.due == expectedDate else {
-                        throw DuoError.invalid("La prochaine occurrence a déjà été modifiée : annulation impossible sans risque. Vous pouvez modifier la tâche manuellement.")
-                    }
-                    var removed = successor
-                    removed.deleted = true
-                    try s.put(removed)
-                }
-            }
-            task.completed = nil
-            var reopened = row
-            reopened.payload = .task(task)
-            try s.put(reopened)
-        }
+        transact { try $0.reopenTask(row) }
         if error == nil, case .task(let task) = row.payload, task.repeatDays > 0 {
             UNUserNotificationCenter.current().removePendingNotificationRequests(
                 withIdentifiers: [TimeRules.nextTaskID(row.id).uuidString])
@@ -128,7 +110,8 @@ import UserNotifications
     func refreshShopping() { transact { try rebuildShopping(&$0) } }
     func cook(_ row: Record) {
         transact { s in
-            guard case .meal(var meal) = row.payload, !meal.cooked else { return }
+            let current = try s.current(row)
+            guard case .meal(var meal) = current.payload, !meal.cooked else { return }
             let needs = try MealEngine.requirements([meal], catalog: Catalog.recipes)
             let changed = try MealEngine.consume(needs, stock: s.records)
             for (before, after) in zip(s.records, changed) where before != after { try s.put(after) }
@@ -197,8 +180,9 @@ import UserNotifications
             try await b.refresh()
             var next = snapshot
             let incoming = try await b.fetch()
+            try SyncContract.validateFetched(incoming, for: next)
             for row in incoming {
-                if let i = next.records.firstIndex(where: { $0.id == row.id }), next.pending.contains(row.id), row.payload == next.records[i].payload, row.deleted == next.records[i].deleted {
+                if let i = next.records.firstIndex(where: { $0.id == row.id }), next.pending.contains(row.id), row.revision >= next.records[i].revision, row.payload == next.records[i].payload, row.deleted == next.records[i].deleted {
                     next.records[i] = row; next.pending.removeAll { $0 == row.id }; next.conflicts.removeAll { $0.id == row.id }
                 } else { next.receive(row) }
             }
@@ -208,6 +192,7 @@ import UserNotifications
             let pending = next.records.filter { next.pending.contains($0.id) }
             if !pending.isEmpty {
                 let acknowledged = try await b.push(pending)
+                try SyncContract.validateAcknowledged(acknowledged, pending: pending, for: next)
                 for row in acknowledged { if let i = next.records.firstIndex(where: { $0.id == row.id }) { next.records[i] = row }; next.pending.removeAll { $0 == row.id } }
             }
             try disk.write(next); snapshot = next
@@ -292,7 +277,10 @@ import UserNotifications
         guard DUORelease.soloOnly, backend == nil, ready, !syncing, let disk else {
             throw DuoError.invalid("La restauration locale est indisponible.")
         }
-        let checked = try Snapshot.decode(JSONEncoder().encode(imported))
+        var checked = try Snapshot.decode(JSONEncoder().encode(imported))
+        // A pre-budget backup cannot erase newer local financial data silently.
+        checked.manualBudget = checked.manualBudget ?? snapshot.manualBudget
+        checked.manualAccounts = checked.manualAccounts ?? snapshot.manualAccounts
         guard checked.conflicts.isEmpty else { throw DuoError.invalid("La sauvegarde contient des conflits non résolus.") }
         // Create a durable recovery export before replacing any current data.
         // If this write fails, leave the current snapshot untouched.
@@ -301,6 +289,7 @@ import UserNotifications
         try JSONEncoder().encode(archive).write(to: backup, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         try disk.write(checked)
         snapshot = checked
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         status = "Sauvegarde restaurée sur cet iPhone"
         error = nil
         return backup
@@ -342,7 +331,8 @@ import UserNotifications
     }
     func assigneeLabel(_ value: String) -> String {
         if value == "Ensemble" { return value }
-        if value == snapshot.userID.uuidString { return "Moi" }
+        if value == snapshot.userID.uuidString { return DUORelease.soloOnly ? "Théo" : "Moi" }
+        if DUORelease.soloOnly && value == "partner-of:" + snapshot.userID.uuidString { return "Lilou" }
         if value.hasPrefix("partner-of:") { return value == "partner-of:" + snapshot.userID.uuidString ? "Mon partenaire" : "Moi" }
         return "Mon partenaire"
     }

@@ -228,4 +228,22 @@ extension DUOUITests {
         }
         let bottom = XCTAttachment(screenshot: app.screenshot()); bottom.name = "Nous-bas"; bottom.lifetime = .keepAlways; add(bottom)
     }
+
+    func testManualBudgetPersistsAfterRelaunch() {
+        app.tabBars.buttons["Accueil"].tap()
+        let budget = app.buttons["openBudget"]
+        if !budget.isHittable { app.swipeUp() }
+        XCTAssertTrue(budget.waitForExistence(timeout: 5)); budget.tap()
+        app.buttons["addBudgetEntry"].tap()
+        let amount = app.textFields["budgetAmount"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 5)); amount.tap(); amount.typeText("42,50")
+        app.buttons["saveBudgetEntry"].tap()
+        XCTAssertTrue(app.staticTexts["budgetRemaining"].waitForExistence(timeout: 5))
+        let before = app.staticTexts["budgetRemaining"].label
+        app.terminate(); app.launch()
+        if !app.buttons["openBudget"].isHittable { app.swipeUp() }
+        app.buttons["openBudget"].tap()
+        XCTAssertTrue(app.staticTexts["budgetRemaining"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["budgetRemaining"].label, before)
+    }
 }
