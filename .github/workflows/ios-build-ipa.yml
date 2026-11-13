@@ -1,0 +1,58 @@
+name: DUO - build .ipa non signe (manuel)
+
+# Manuel uniquement : le Mac GitHub consomme des minutes incluses.
+# L'.ipa produit n'est PAS signe : Sideloadly le re-signe avec l'Apple ID gratuit de l'utilisateur.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duo-ios-build-ipa
+  cancel-in-progress: true
+
+jobs:
+  build-ipa:
+    name: Compilation iPhone (non signe) et .ipa
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Afficher Xcode
+        run: xcodebuild -version
+      - name: Compiler pour iPhone sans signature
+        run: |
+          mkdir -p TestResults
+          set -o pipefail
+          xcodebuild -project DUO.xcodeproj -scheme DUO \
+            -sdk iphoneos -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath TestResults/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee TestResults/build-device.log
+      - name: Fabriquer DUO-unsigned.ipa
+        run: |
+          APP="$(find TestResults/DerivedData/Build/Products -maxdepth 2 -name '*.app' -type d | head -1)"
+          echo "App trouvee : $APP"
+          test -n "$APP"
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          zip -qry DUO-unsigned.ipa Payload
+          ls -lh DUO-unsigned.ipa
+      - name: Publier l'.ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: DUO-unsigned-ipa
+          path: DUO-unsigned.ipa
+          retention-days: 7
+          if-no-files-found: error
+      - name: Journal de compilation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: duo-build-device-log
+          path: TestResults/build-device.log
+          retention-days: 2
+          if-no-files-found: ignore
