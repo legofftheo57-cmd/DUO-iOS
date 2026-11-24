@@ -162,6 +162,7 @@ struct HouseholdView: View {
         case .task(let t): return "\(t.title) · \(t.assignee) · \(t.completed == nil ? "à faire" : "terminée")"
         case .event(let e): return e.title + " · " + e.start.formatted()
         case .habit(let h): return "\(h.title) · objectif \(h.weeklyGoal) · \(h.completions.count) validations"
+        case .budget(let e): return "\(e.title) · \(e.kind.rawValue) · \(Double(e.cents) / 100) €"
         }
     }
 }

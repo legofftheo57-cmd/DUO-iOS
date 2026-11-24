@@ -74,7 +74,7 @@ struct ItemEditor: View {
         case .task(let t): name = t.title; assignee = t.assignee; repeatDays = t.repeatDays; hasDate = t.due != nil; start = t.due ?? Date()
         case .event(let e): name = e.title; start = e.start; end = e.end
         case .habit(let h): name = h.title; goal = h.weeklyGoal
-        case .meal: break
+        case .meal, .budget: break
         }
     }
     private func save() {

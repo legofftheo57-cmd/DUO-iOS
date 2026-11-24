@@ -71,8 +71,8 @@ public struct Habit: Codable, Equatable, Sendable {
     }
 }
 public enum Content: Codable, Equatable, Sendable {
-    case food(Food), shopping(Shopping), meal(Meal), task(HouseTask), event(Event), habit(Habit)
-    public var kind: String { switch self { case .food: return "food"; case .shopping: return "shopping"; case .meal: return "meal"; case .task: return "task"; case .event: return "event"; case .habit: return "habit" } }
+    case food(Food), shopping(Shopping), meal(Meal), task(HouseTask), event(Event), habit(Habit), budget(BudgetEntry)
+    public var kind: String { switch self { case .food: return "food"; case .shopping: return "shopping"; case .meal: return "meal"; case .task: return "task"; case .event: return "event"; case .habit: return "habit"; case .budget: return "budget" } }
     public func validate() throws {
         switch self {
         case .food(let f): try f.validate()
@@ -81,6 +81,7 @@ public enum Content: Codable, Equatable, Sendable {
         case .task(let t): guard !normalized(t.title).isEmpty, t.title.count <= 200, (0...365).contains(t.repeatDays) else { throw DuoError.invalid("Tâche ou récurrence invalide.") }
         case .event(let e): guard !normalized(e.title).isEmpty, e.title.count <= 200, e.end > e.start else { throw DuoError.invalid("La fin doit suivre le début.") }
         case .habit(let h): guard !normalized(h.title).isEmpty, h.title.count <= 200, (1...7).contains(h.weeklyGoal) else { throw DuoError.invalid("Objectif entre 1 et 7 jours.") }
+        case .budget(let e): guard (1...100_000_000).contains(e.cents), !normalized(e.title).isEmpty, e.title.count <= 200, ["Théo", "Lilou"].contains(e.person) else { throw DuoError.invalid("Opération budgétaire invalide.") }
         }
     }
 }
