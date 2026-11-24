@@ -96,6 +96,9 @@ public struct Snapshot: Codable, Sendable {
     public var manualBudget: [BudgetEntry]?
     public var coupleDay: String?
     public var coupleCompleted: [Int]?
+    /// Journal local des habitudes (jamais synchronisé).
+    public var journal: [JournalEntry]?
+    public var dismissed: [String]?
     public var schema = 1; public var householdID: UUID; public var userID: UUID; public var records: [Record] = []; public var pending: [UUID] = []; public var conflicts: [Conflict] = []
     public init(householdID: UUID = UUID(), userID: UUID = UUID()) { self.householdID = householdID; self.userID = userID }
     public static func decode(_ data: Data) throws -> Snapshot {

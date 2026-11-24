@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("appearance") private var appearance = "dark"
     @AppStorage("nightStart") private var nightStart = 1200; @AppStorage("nightEnd") private var nightEnd = 420
     @AppStorage("exclusions") private var exclusions = ""
+    @AppStorage("duo.me") private var me = "Théo"
     @State private var email = ""; @State private var password = ""; @State private var invitation = ""; @State private var token: String?
     @State private var confirmDisconnect = false
     @State private var exportURL: URL?; @State private var deletionPhrase = ""; @State private var confirmDeletion = false
@@ -15,6 +16,9 @@ struct SettingsView: View {
     @State private var inviteURL: URL?; @State private var confirmRevocation = false; @State private var recoveryMode = false; @State private var recoveryCode = ""; @State private var recoveryPassword = ""
     var body: some View {
         Form {
+            Section {
+                Picker("Ce téléphone est celui de", selection: $me) { Text("Théo").tag("Théo"); Text("Lilou").tag("Lilou") }.pickerStyle(.segmented)
+            } header: { Text("Qui suis-je ?") } footer: { Text("DUO adapte les horaires, la fatigue et les propositions à la personne qui tient ce téléphone.") }
             Section("Graphite & Ice") {
                 Picker("Apparence", selection: $appearance) { Text("Système").tag("system"); Text("Clair").tag("light"); Text("Sombre").tag("dark"); Text("Horaire").tag("schedule") }
                 if appearance == "schedule" {

@@ -4,7 +4,12 @@ import DUOCore
 // The first usable iPhone build is deliberately offline and single-device.
 // Change this flag only when two-device sync has been tested and approved.
 enum DUORelease {
-    static let soloOnly = true
+    /// Mode foyer automatique dès qu'un serveur Supabase est intégré à la compilation.
+    static let soloOnly: Bool = {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
+              raw.hasPrefix("https://"), raw.contains(".supabase.co") else { return true }
+        return false
+    }()
     // Stable frames let XCUITest wait for the app to become idle.
     // Normal users keep minute-by-minute live date/appearance updates.
     static let uiTesting = ProcessInfo.processInfo.arguments.contains("-duo-ui-test")
@@ -26,7 +31,7 @@ enum DUORelease {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     RootView()
                         .environment(store)
-                        .preferredColorScheme(DuoTheme.scheme(mode: appearance, date: context.date, start: nightStart, end: nightEnd))
+                        .preferredColorScheme(.dark) // Nouvelle interface « nuit et pastels »
                         .tint(Color("Control"))
                 }
             }
@@ -40,13 +45,7 @@ struct RootView: View {
     @State private var assistant = false
     var body: some View {
         @Bindable var store = store
-        TabView {
-            nav("Accueil") { HomeView() }.tabItem { Label("Accueil", systemImage: "house") }
-            nav("Tâches") { HouseholdView() }.tabItem { Label("Tâches", systemImage: "checkmark.circle") }
-            nav("Courses") { ShoppingView() }.tabItem { Label("Courses", systemImage: "basket") }
-            nav("Planning") { PlanningView() }.tabItem { Label("Planning", systemImage: "calendar") }
-            nav("Nous deux") { CoupleIdeasView() }.tabItem { Label("Nous", systemImage: "heart") }
-        }
+        RootV2(settings: $settings, assistant: $assistant)
         .disabled(store.syncing || !store.ready)
         .overlay { if store.syncing { ProgressView("Synchronisation…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) } }
         .sheet(isPresented: $settings) { NavigationStack { SettingsView() } }

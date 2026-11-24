@@ -4,6 +4,10 @@ name: DUO - build .ipa non signe (manuel)
 # L'.ipa produit n'est PAS signe : Sideloadly le re-signe avec l'Apple ID gratuit de l'utilisateur.
 on:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Machine (macos-26 pour l IA Apple, macos-15-intel en secours)'
+        default: 'macos-26'
 
 permissions:
   contents: read
@@ -15,7 +19,7 @@ concurrency:
 jobs:
   build-ipa:
     name: Compilation iPhone (non signe) et .ipa
-    runs-on: macos-15-intel
+    runs-on: ${{ inputs.runner || 'macos-26' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +27,8 @@ jobs:
           persist-credentials: false
       - name: Afficher Xcode
         run: xcodebuild -version
+      - name: Tests du cerveau et du moteur (Swift)
+        run: set -o pipefail; swift test 2>&1 | tail -60
       - name: Compiler pour iPhone sans signature
         env:
           # Secrets GitHub facultatifs : sans eux, DUO reste en mode local (sans compte).

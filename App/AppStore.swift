@@ -6,6 +6,8 @@ import UserNotifications
 @MainActor @Observable final class AppStore {
     var snapshot = Snapshot(); var error: String?; var status = "Sur cet iPhone"; var syncing = false; var ready = false
     var budgetImportError: String?
+    /// Message bref affiché en bas de l'écran (nouvelle interface).
+    var toast: String?
     var lastSuccessfulSync: Date?
     var backend: Backend?; var pendingInvitation: String?; private var disk: DiskStore?
     var records: [Record] { snapshot.records.filter { !$0.deleted } }
