@@ -24,7 +24,16 @@ jobs:
       - name: Afficher Xcode
         run: xcodebuild -version
       - name: Compiler pour iPhone sans signature
+        env:
+          # Secrets GitHub facultatifs : sans eux, DUO reste en mode local (sans compte).
+          # Ne JAMAIS mettre la cle service_role ici : uniquement la cle publique (publishable/anon).
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
+          if [ -n "$SUPABASE_URL" ]; then echo "Mode foyer : Supabase configure"; else echo "Mode local : aucun Supabase configure"; fi
+          # xcconfig traite // comme un commentaire : on echappe l'URL.
+          SB_URL="${SUPABASE_URL/:\/\//:\/\$()\/}"
+          printf 'SUPABASE_URL = %s\nSUPABASE_PUBLISHABLE_KEY = %s\n' "$SB_URL" "$SUPABASE_PUBLISHABLE_KEY" > Local.xcconfig
           mkdir -p TestResults
           set -o pipefail
           xcodebuild -project DUO.xcodeproj -scheme DUO \
@@ -38,6 +47,7 @@ jobs:
           APP="$(find TestResults/DerivedData/Build/Products -maxdepth 2 -name '*.app' -type d | head -1)"
           echo "App trouvee : $APP"
           test -n "$APP"
+          echo "URL du foyer dans l'app : $(plutil -extract SUPABASE_URL raw "$APP/Info.plist" 2>/dev/null || echo 'aucune (mode local)')"
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qry DUO-unsigned.ipa Payload
           ls -lh DUO-unsigned.ipa
