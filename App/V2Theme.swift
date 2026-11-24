@@ -124,6 +124,7 @@ struct ToastView: View {
 /// Ligne de tâche commune à l'accueil et à la maison.
 struct TaskLineV2: View {
     @Environment(AppStore.self) private var store
+    @State private var editing = false
     let row: Record; let task: HouseTask
     var body: some View {
         let who = store.person(forAssignee: task.assignee)
@@ -140,6 +141,10 @@ struct TaskLineV2: View {
             Avatar(person: who, size: 24)
         }
         .contentShape(Rectangle())
-        .contextMenu { Button("Supprimer", systemImage: "trash", role: .destructive) { withAnimation { store.remove(row) }; if store.error == nil { store.toast = "Tâche supprimée" } } }
+        .contextMenu {
+            Button("Modifier", systemImage: "pencil") { editing = true }
+            Button("Supprimer", systemImage: "trash", role: .destructive) { withAnimation { store.remove(row) }; if store.error == nil { store.toast = "Tâche supprimée" } }
+        }
+        .sheet(isPresented: $editing) { NavigationStack { ItemEditor(kind: "task", row: row) } }
     }
 }

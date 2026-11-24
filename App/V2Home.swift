@@ -6,9 +6,17 @@ struct RootV2: View {
     @Environment(AppStore.self) private var store
     @Binding var settings: Bool
     @Binding var assistant: Bool
-    @State private var tab = 0
+    @State private var tab: Int = {
+        let a = ProcessInfo.processInfo.arguments
+        if let i = a.firstIndex(of: "-duo-tab"), a.count > i + 1, let n = Int(a[i + 1]) { return n }
+        return 0
+    }()
     @State private var quick = false
-    @State private var kitchenSegment = 0
+    @State private var kitchenSegment: Int = {
+        let a = ProcessInfo.processInfo.arguments
+        if let i = a.firstIndex(of: "-duo-kitchen"), a.count > i + 1, let n = Int(a[i + 1]) { return n }
+        return 0
+    }()
     var body: some View {
         ZStack(alignment: .bottom) {
             DuoBackground()
@@ -58,49 +66,109 @@ struct HomeV2: View {
     @Binding var settings: Bool
     @Binding var assistant: Bool
     @State private var couple = false
+    @State private var account = false
+    @AppStorage("duo.room") private var room = 1
     @AppStorage("duo.chef.day") private var chefDay = ""
     @AppStorage("duo.chef.text") private var chefText = ""
+    @State private var appeared = false
+
+    private func greeting(_ d: Date) -> String {
+        let h = Calendar.current.component(.hour, from: d)
+        return h < 5 ? "Bonne nuit" : h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir"
+    }
+    private var roomCounts: [Int] { (0..<4).map { i in store.openTasks.filter { Brain.room(for: $0.1.title) == i }.count } }
+
     var body: some View {
         let now = Date()
         let tonight = store.meal(on: now)
         let rest = store.leftovers.first
+        let todayTasks = store.openTasks.filter { $0.1.due.map { Calendar.current.isDateInToday($0) || $0 < now } ?? false }
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 18) {
+                // En-tête
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(now.formatted(.dateTime.weekday(.wide).day().month(.wide))).kicker()
-                        Text("Bonjour \(store.me.rawValue)").font(P.serif(32)).foregroundStyle(P.text)
+                        Text("\(greeting(now)) \(store.me.rawValue)").font(P.serif(34)).foregroundStyle(P.text)
                     }
                     Spacer()
+                    SyncDot(state: store.linkState, busy: store.syncInFlight) { account = true }
                     Button { assistant = true } label: { Image(systemName: "sparkles").frame(width: 44, height: 44) }.accessibilityLabel("Parler à Joe")
                     Button { settings = true } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("Réglages")
                 }
                 .foregroundStyle(P.mut)
 
-                OrbitV2(left: store.openTasks.filter { $0.1.due.map { Calendar.current.isDateInToday($0) || $0 < now } ?? false }.count,
-                        progress: store.todayProgress) { index in
-                    switch index { case 0: tab = 1; case 1: tab = 2; case 2: kitchenSegment = 0; tab = 3; case 3: tab = 4; default: couple = true }
+                if store.linkState == .signedOut || store.linkState == .noHome {
+                    Button { account = true } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "iphone.radiowaves.left.and.right").font(.system(size: 20)).foregroundStyle(P.ink)
+                                .frame(width: 42, height: 42).background(Circle().fill(P.peach))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Reliez vos deux téléphones").font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text)
+                                Text(store.linkState == .signedOut ? "2 minutes : un compte chacun, puis le foyer." : "Dernière étape : créer ou rejoindre le foyer.").font(.system(size: 12)).foregroundStyle(P.mut)
+                            }
+                            Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(P.mut)
+                        }.padding(14).glass(20)
+                    }.buttonStyle(.plain)
                 }
-                .frame(height: 250)
+
+                // La maison en 3D
+                ZStack(alignment: .bottom) {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .fill(RadialGradient(colors: [Color(hex: 0x2B2342), Color(hex: 0x14111D)], center: UnitPoint(x: 0.5, y: 0.35), startRadius: 10, endRadius: 260))
+                    House3DView(counts: roomCounts, selected: nil) { i in room = i; withAnimation(.snappy) { tab = 2 } }
+                        .padding(.bottom, 34)
+                    HStack(spacing: 6) {
+                        ForEach(0..<4, id: \.self) { i in
+                            Button { room = i; withAnimation(.snappy) { tab = 2 } } label: {
+                                HStack(spacing: 5) {
+                                    Circle().fill(HouseV2.rooms[i].1).frame(width: 7, height: 7)
+                                    Text(HouseV2.rooms[i].0).lineLimit(1).minimumScaleFactor(0.8)
+                                    if roomCounts[i] > 0 { Text("\(roomCounts[i])").foregroundStyle(HouseV2.rooms[i].1).bold() }
+                                }
+                                .font(.system(size: 11, weight: .semibold)).foregroundStyle(P.text)
+                                .padding(.horizontal, 9).frame(minHeight: 32)
+                                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08)))
+                            }.buttonStyle(.plain)
+                        }
+                    }.padding(10)
+                }
+                .frame(height: 330)
+                .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(Color.white.opacity(0.09)))
+                .shadow(color: P.lav.opacity(0.18), radius: 40, y: 10)
+                .scaleEffect(appeared ? 1 : 0.96).opacity(appeared ? 1 : 0)
+
+                // Tableau de bord du jour
+                HStack(spacing: 10) {
+                    StatTile(title: "À faire", value: "\(todayTasks.count)", detail: todayTasks.isEmpty ? "Rien d'urgent" : "aujourd'hui", symbol: "checklist", tint: P.lav) { withAnimation(.snappy) { tab = 2 } }
+                    StatTile(title: "Ce soir", value: rest != nil ? "Restes" : (tonight != nil ? "Prévu" : "Libre"), detail: rest.map { $0.1.name } ?? tonight.flatMap { store.recipe($0.1.recipeID)?.title } ?? "Idées du chef", symbol: "fork.knife", tint: P.butter) { kitchenSegment = 0; withAnimation(.snappy) { tab = 3 } }
+                    StatTile(title: "Budget", value: Brain.euros(store.monthLeft), detail: "reste ce mois", symbol: "drop.fill", tint: P.mint) { withAnimation(.snappy) { tab = 4 } }
+                }
+                .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 14)
+
+                if let next = store.nextAppointment(after: now) {
+                    Button { withAnimation(.snappy) { tab = 1 } } label: {
+                        HStack(spacing: 12) {
+                            VStack(spacing: 0) {
+                                Text(next.date.formatted(.dateTime.weekday(.abbreviated))).font(.system(size: 10, weight: .bold)).textCase(.uppercase)
+                                Text("\(Calendar.current.component(.day, from: next.date))").font(P.serif(22))
+                            }.foregroundStyle(P.ink).frame(width: 48, height: 52).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(P.sky))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Prochain rendez-vous").kicker()
+                                Text(next.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text).lineLimit(1)
+                                Text(next.date.formatted(date: .omitted, time: .shortened)).font(.system(size: 12)).foregroundStyle(P.mut)
+                            }
+                            Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(P.mut)
+                        }.padding(12).glass(20)
+                    }.buttonStyle(.plain)
+                }
 
                 if !chefText.isEmpty {
                     HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "frying.pan").foregroundStyle(P.lav)
+                        Image(systemName: "frying.pan").foregroundStyle(P.butter)
                         Text(chefText).font(.system(size: 14)).foregroundStyle(P.text).fixedSize(horizontal: false, vertical: true)
                     }.padding(14).glass(20).accessibilityElement(children: .combine)
                 }
-
-                Button { kitchenSegment = 0; tab = 3 } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack { Text("Ce soir · 19 h 30"); Spacer(); Text(cookLabel(now)) }
-                            .font(.system(size: 11, weight: .bold)).tracking(1.2).textCase(.uppercase)
-                        Text(rest.map { $0.1.name } ?? tonight.flatMap { store.recipe($0.1.recipeID)?.title } ?? "Rien de prévu · DUO a des idées")
-                            .font(P.serif(23)).multilineTextAlignment(.leading)
-                    }
-                    .foregroundStyle(P.ink).padding(18).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(LinearGradient(colors: [P.butter, Color(hex: 0xF3B79A)], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                    .modifier(GentleTilt())
-                }.buttonStyle(.plain)
 
                 let props = store.proposals
                 if !props.isEmpty {
@@ -112,7 +180,7 @@ struct HomeV2: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
-                        Text("Les prochaines").font(P.serif(19)).foregroundStyle(P.text)
+                        Text("Les prochaines tâches").font(P.serif(19)).foregroundStyle(P.text)
                         Spacer()
                         Button { withAnimation { store.imTired() } } label: {
                             Text("Je suis crevé").font(.system(size: 12, weight: .semibold)).foregroundStyle(P.text)
@@ -125,20 +193,73 @@ struct HomeV2: View {
                     BalanceBar(theo: Brain.balance(store.snapshot.journal ?? [], now: now)).padding(.top, 8)
                 }
                 .padding(16).glass()
+
+                Button { couple = true } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "heart.fill").font(.system(size: 18)).foregroundStyle(P.ink)
+                            .frame(width: 42, height: 42).background(Circle().fill(LinearGradient(colors: [P.rose, P.peach], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Un moment à deux").font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text)
+                            Text("3 idées nouvelles chaque jour, sans pression.").font(.system(size: 12)).foregroundStyle(P.mut)
+                        }
+                        Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(P.mut)
+                    }.padding(14).glass(20)
+                }.buttonStyle(.plain)
             }
-            .padding(.horizontal, 18).padding(.top, 8)
+            .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 12)
         }
         .scrollIndicators(.hidden)
+        .refreshable { await store.sync() }
         .sheet(isPresented: $couple) { NavigationStack { CoupleIdeasView().navigationTitle("Nous deux") } }
+        .sheet(isPresented: $account) { NavigationStack { AccountView() } }
+        .onAppear { withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) { appeared = true } }
         .task {
             let key = CoupleSchedule.dayKey(Date())
             guard chefDay != key, ChefAI.isAvailable else { return }
             if let text = await ChefAI.brief(context: store.chefContext) { chefText = text; chefDay = key }
         }
     }
-    private func cookLabel(_ day: Date) -> String {
-        if store.leftovers.first != nil { return "Rien à cuisiner" }
-        return DuoSchedule.cook(on: day).map { "\($0.rawValue) cuisine" } ?? "À deux"
+}
+
+/// Petit indicateur de connexion : vert = relié, orange = à relier, gris = un seul téléphone.
+struct SyncDot: View {
+    let state: LinkState; let busy: Bool; let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle().fill(color.opacity(0.18)).frame(width: 30, height: 30)
+                if busy { ProgressView().scaleEffect(0.6).tint(color) }
+                else { Image(systemName: state == .linked ? "link" : "link.badge.plus").font(.system(size: 12, weight: .bold)).foregroundStyle(color) }
+            }.frame(width: 44, height: 44)
+        }.buttonStyle(.plain)
+        .accessibilityLabel(state == .linked ? "Téléphones reliés" : "Relier les téléphones")
+    }
+    private var color: Color { state == .linked ? P.mint : (state == .noServer ? P.mut : P.peach) }
+}
+
+struct StatTile: View {
+    let title: String; let value: String; let detail: String; let symbol: String; let tint: Color; let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: symbol).font(.system(size: 14, weight: .semibold)).foregroundStyle(P.ink)
+                    .frame(width: 30, height: 30).background(Circle().fill(tint))
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(P.mut).textCase(.uppercase).tracking(0.8)
+                Text(value).font(P.serif(22)).foregroundStyle(P.text).lineLimit(1).minimumScaleFactor(0.6)
+                Text(detail).font(.system(size: 11)).foregroundStyle(P.mut).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12).frame(maxWidth: .infinity, minHeight: 138, alignment: .topLeading)
+            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [tint.opacity(0.16), P.card.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.09)))
+        }.buttonStyle(PressScale())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Retour visuel au toucher : léger enfoncement.
+struct PressScale: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.scaleEffect(configuration.isPressed ? 0.96 : 1).animation(.snappy(duration: 0.2), value: configuration.isPressed)
     }
 }
 
@@ -286,7 +407,7 @@ struct QuickAddV2: View {
         default:
             guard let cents = ManualBudget.amountInCents(amount) else { store.error = "Montant invalide."; return }
             let entry = BudgetEntry(date: Date(), kind: .expense, cents: cents, title: title, person: store.me.rawValue, shared: true)
-            store.transact { s in var b = s.manualBudget ?? []; b.append(entry); try ManualBudget.validate(b); s.manualBudget = b }
+            store.addBudget(entry)
             if store.error == nil { store.toast = "Dépense notée"; tab = 4 }
         }
         if store.error == nil { dismiss() }

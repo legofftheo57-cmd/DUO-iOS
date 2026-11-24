@@ -1,141 +1,129 @@
 import SwiftUI
 import DUOCore
 
-/// DUO's assistant never executes a write without an explicit user tap.
+/// Joe : on lui écrit comme à quelqu'un. Il répond, et propose une action que l'on confirme d'un geste.
 struct AssistantView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var question = ""
-    @State private var exchanges: [ConversationLine] = []
-    @State private var action: AssistantAction?
-    @State private var waiting = false
-    @State private var responseError: String?
+    @State private var lines: [Line] = []
+    @State private var thinking = false
+    @FocusState private var focus: Bool
+
+    struct Line: Identifiable { let id = UUID(); let text: String; let mine: Bool; var action: JoeAction? = nil; var ai = false; var done = false }
+
+    private let examples = ["Qu'est-ce qu'on mange ce soir ?", "Rappelle-moi de sortir les poubelles demain", "Ajoute du lait aux courses", "J'ai dépensé 23,50 € chez Leclerc", "Rendez-vous dentiste jeudi à 14 h", "Que sais-tu faire ?"]
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 14) {
-                        if exchanges.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Label("Bonjour, moi c’est Joe.", systemImage: "sparkles").font(.title2.bold())
-                                Text("Je peux suggérer un repas, résumer le planning et préparer une modification ou un ajout aux courses. Tu gardes toujours le dernier mot.")
-                                    .foregroundStyle(.secondary)
-                                ForEach(["Que cuisiner avec ce qu’on a ?", "Que prévoit notre planning ?", "Quelle marque acheter pour le riz ?", "Décale le sport à demain", "Ajoute 2 kg de riz aux courses"], id: \.self) { example in
-                                    Button(example) { question = example }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(12).background(Color("Surface"), in: RoundedRectangle(cornerRadius: 12))
-                                }
-                            }.padding(.vertical, 16)
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        if lines.isEmpty { intro }
+                        ForEach($lines) { $line in bubble($line).id(line.id) }
+                        if thinking {
+                            HStack(spacing: 8) { ProgressView().tint(P.lav); Text("Joe réfléchit…").font(.system(size: 13)).foregroundStyle(P.mut) }.id("thinking")
                         }
-                        ForEach(exchanges) { line in
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(line.isUser ? "Vous" : line.isCloud ? "Joe · IA en ligne" : "Joe · local").font(.caption.bold()).foregroundStyle(.secondary)
-                                Text(line.text).textSelection(.enabled)
-                            }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                                .background(line.isUser ? Color("Ice").opacity(0.25) : Color("Surface"), in: RoundedRectangle(cornerRadius: 16))
-                                .id(line.id)
-                        }
-                        if let action {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Label("Proposition de Joe", systemImage: "checkmark.shield").font(.headline)
-                                Text("Aucune modification ne sera effectuée sans ta confirmation.").font(.caption)
-                                HStack {
-                                    Button("Confirmer") { apply(action) }.buttonStyle(.borderedProminent)
-                                    Button("Annuler") { self.action = nil }.buttonStyle(.bordered)
-                                }
-                            }.padding().background(Color("Surface"), in: RoundedRectangle(cornerRadius: 16))
-                        }
-                        if let responseError { Text(responseError).font(.caption).foregroundStyle(.red) }
                     }.padding(18)
                 }
-                .onChange(of: exchanges.count) { _, _ in if let id = exchanges.last?.id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } } }
+                .scrollIndicators(.hidden)
+                .onChange(of: lines.count) { _, _ in withAnimation { proxy.scrollTo(lines.last?.id, anchor: .bottom) } }
             }
-            Divider()
-            VStack(spacing: 9) {
-                HStack {
-                    TextField("Demande quelque chose à Joe…", text: $question, axis: .vertical)
-                        .lineLimit(1...4).textInputAutocapitalization(.sentences)
-                        .accessibilityLabel("Question pour Joe")
-                    Button { askLocal() } label: { Image(systemName: "arrow.up.circle.fill").font(.title2) }
-                        .disabled(waiting || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .accessibilityLabel("Réponse locale gratuite")
-                }
-                if !DUORelease.soloOnly && store.backend?.session != nil {
-                    Button {
-                        Task { await askCloud() }
-                    } label: {
-                        HStack { Image(systemName: "network"); Text("Demander à l’IA en ligne (envoie uniquement ma question)") }
-                            .font(.caption)
-                    }.disabled(waiting || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-                Text(DUORelease.soloOnly ? "Joe fonctionne sur cet iPhone, sans réseau. Tu confirmes chaque modification." : "Le mode local fonctionne sans réseau. Le mode en ligne exige une configuration serveur et une autorisation volontaire pour chaque question. Aucune action automatique.")
-                    .font(.caption2).foregroundStyle(.secondary)
-            }.padding(14).background(Color("Background"))
+            HStack(spacing: 10) {
+                TextField("Écris à Joe…", text: $question, axis: .vertical)
+                    .lineLimit(1...4).focused($focus).submitLabel(.send).onSubmit(send)
+                    .padding(.horizontal, 14).padding(.vertical, 12).glass(20).foregroundStyle(P.text)
+                Button(action: send) {
+                    Image(systemName: "arrow.up").font(.system(size: 17, weight: .bold)).foregroundStyle(P.ink)
+                        .frame(width: 44, height: 44).background(Circle().fill(P.lav))
+                }.buttonStyle(PressScale()).disabled(thinking || question.trimmingCharacters(in: .whitespaces).isEmpty)
+                .accessibilityLabel("Envoyer")
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(Color(hex: 0x100E16).opacity(0.95))
         }
-        .background(Color("Background"))
+        .background(DuoBackground())
+        .preferredColorScheme(.dark)
         .navigationTitle("Joe")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fermer") { dismiss() } } }
     }
-    private func askLocal() {
-        let value = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return }
-        responseError = nil; action = nil; question = ""
-        exchanges.append(ConversationLine(text: value, isUser: true))
-        let response = DuoAssistant.answer(value, records: store.records, recipes: Catalog.recipes,
-                                           stock: store.foods, exclusions: store.exclusions)
-        exchanges.append(ConversationLine(text: response.message))
-        action = response.action
+
+    private var intro: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ZStack {
+                Circle().fill(RadialGradient(colors: [P.lav, P.lav.opacity(0.1)], center: .center, startRadius: 2, endRadius: 46)).frame(width: 84, height: 84)
+                Image(systemName: "sparkles").font(.system(size: 30, weight: .semibold)).foregroundStyle(P.ink)
+            }
+            Text("Salut \(store.me.rawValue), moi c'est Joe.").font(P.serif(28)).foregroundStyle(P.text)
+            Text(JoeBrain.aiAvailable ? "J'utilise l'intelligence d'Apple, directement sur ton iPhone : rien ne part sur Internet." : "Je fonctionne directement sur ton iPhone. Active Apple Intelligence dans les Réglages de l'iPhone pour que je comprenne encore mieux.")
+                .font(.system(size: 13)).foregroundStyle(P.mut)
+            Text("Essaie :").kicker().padding(.top, 6)
+            ForEach(examples, id: \.self) { e in
+                Button { question = e; send() } label: {
+                    Text(e).font(.system(size: 14)).foregroundStyle(P.text).frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12).glass(16)
+                }.buttonStyle(PressScale())
+            }
+        }.padding(.vertical, 8)
     }
-    private func askCloud() async {
-        let value = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty, !waiting else { return }
-        responseError = nil; action = nil; question = ""; waiting = true
-        exchanges.append(ConversationLine(text: value, isUser: true))
-        defer { waiting = false }
-        do {
-            guard let backend = store.backend else { throw DuoError.unauthorized }
-            let answer = try await backend.askAI(question: value)
-            exchanges.append(ConversationLine(text: answer, isCloud: true))
-        } catch {
-            // Do not silently transmit a second time or fabricate a cloud reply.
-            responseError = "Réponse en ligne indisponible : \(error.localizedDescription). Tu peux utiliser le mode local."
+
+    @ViewBuilder private func bubble(_ line: Binding<Line>) -> some View {
+        let l = line.wrappedValue
+        VStack(alignment: l.mine ? .trailing : .leading, spacing: 8) {
+            Text(l.text).font(.system(size: 15)).foregroundStyle(l.mine ? P.ink : P.text).textSelection(.enabled)
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(l.mine ? AnyShapeStyle(P.lav) : AnyShapeStyle(P.card.opacity(0.9))))
+            if let a = l.action {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(a.summary, systemImage: icon(a)).font(.system(size: 14, weight: .semibold)).foregroundStyle(P.text)
+                    if l.done {
+                        Label("C'est fait", systemImage: "checkmark.circle.fill").font(.system(size: 13, weight: .semibold)).foregroundStyle(P.mint)
+                    } else {
+                        HStack(spacing: 8) {
+                            PillButton(title: "Oui, fais-le", fill: P.mint, fg: Color(hex: 0x12251D)) { apply(a); if store.error == nil { line.wrappedValue.done = true } }
+                            Button("Non merci") { line.wrappedValue.action = nil }.font(.system(size: 13, weight: .semibold)).foregroundStyle(P.mut).frame(minHeight: 44)
+                        }
+                    }
+                }.padding(12).glass(18)
+            }
+            if l.ai { Text("Apple Intelligence · sur l'iPhone").font(.system(size: 10)).foregroundStyle(P.mut) }
+        }
+        .frame(maxWidth: .infinity, alignment: l.mine ? .trailing : .leading)
+    }
+
+    private func icon(_ a: JoeAction) -> String {
+        switch a { case .task: return "checkmark.circle"; case .shopping: return "basket"; case .expense: return "eurosign.circle"; case .event: return "calendar" }
+    }
+
+    private func send() {
+        let q = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty, !thinking else { return }
+        question = ""; lines.append(Line(text: q, mine: true))
+        let local = JoeBrain.local(q, store: store)
+        // Les demandes d'action claires sont comprises localement (instantané) ; le reste va à l'IA d'Apple si elle est là.
+        if local.action != nil || !JoeBrain.aiAvailable { lines.append(Line(text: local.text, mine: false, action: local.action)); return }
+        thinking = true
+        Task {
+            let ai = await JoeBrain.ai(q, store: store)
+            thinking = false
+            if let ai { lines.append(Line(text: ai.text, mine: false, action: ai.action, ai: true)) }
+            else { lines.append(Line(text: local.text, mine: false, action: local.action)) }
         }
     }
-    private func apply(_ requested: AssistantAction) {
-        responseError = nil
-        switch requested {
-        case .addShopping(let ingredient):
-            // Revalidate when the user confirms, never when Joe merely proposes.
-            store.put(.shopping(Shopping(ingredient: ingredient)))
-        case .moveEvent(let id, let target), .moveTask(let id, let target):
-            guard let row = store.records.first(where: { $0.id == id }) else {
-                responseError = "L’élément n’existe plus."; action = nil; return
-            }
-            switch (requested, row.payload) {
-            case (.moveEvent, .event(var event)):
-                let duration = event.end.timeIntervalSince(event.start)
-                event.start = target; event.end = target.addingTimeInterval(duration)
-                store.put(.event(event), editing: row)
-            case (.moveTask, .task(var task)):
-                task.due = target; store.put(.task(task), editing: row)
-            default:
-                responseError = "Le type de l’élément a changé. Aucune action effectuée."
-                action = nil; return
-            }
+
+    private func apply(_ a: JoeAction) {
+        switch a {
+        case .task(let t, let d, let p):
+            let due = Calendar.current.date(byAdding: .day, value: d, to: Calendar.current.startOfDay(for: Date()))?.addingTimeInterval(19 * 3600)
+            store.put(.task(HouseTask(title: t, assignee: store.assignee(for: p), due: due)))
+        case .shopping(let n):
+            store.put(.shopping(Shopping(ingredient: Ingredient(n, 1, .piece))))
+        case .expense(let t, let c, let s):
+            store.addBudget(BudgetEntry(date: Date(), kind: .expense, cents: c, title: t, person: store.me.rawValue, shared: s))
+        case .event(let t, let start):
+            store.put(.event(Event(title: t, start: start, end: start.addingTimeInterval(3600))))
         }
-        action = nil
-        if store.error == nil {
-            exchanges.append(ConversationLine(text: DUORelease.soloOnly
-                ? "C’est fait. La modification est enregistrée sur cet iPhone."
-                : "C’est fait. La modification est enregistrée sur cet iPhone et sera synchronisée lorsque le service sera configuré."))
-            if !DUORelease.soloOnly { Task { await store.sync(showErrors: false) } }
-        } else { responseError = store.error }
+        if store.error == nil { store.toast = "Enregistré" }
     }
-}
-private struct ConversationLine: Identifiable {
-    let id = UUID()
-    let text: String
-    var isUser = false
-    var isCloud = false
 }

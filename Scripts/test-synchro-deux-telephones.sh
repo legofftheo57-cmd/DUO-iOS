@@ -14,7 +14,7 @@ host=re.sub(r"^[a-z0-9]{8,}", "<ref>", p.hostname or "")
 print("Adresse :", "schéma="+p.scheme, "hôte="+host, "chemin="+repr(p.path), "espaces/retours="+str(u!=u.strip()), "longueur="+str(len(u)))
 print("Clé :", "début="+k[:14]+"…", "longueur="+str(len(k)), "espaces/retours="+str(k!=k.strip()))
 PY
-U="$(echo -n "$U" | tr -d '[:space:]')"; U="${U%/}"; K="$(echo -n "$K" | tr -d '[:space:]')"
+CLEAN="$(python3 "$(dirname "$0")/normaliser-supabase.py")"; U="$(echo "$CLEAN" | sed -n 1p)"; K="$(echo "$CLEAN" | sed -n 2p)"
 PW="DuoTest-$(openssl rand -hex 8)"
 ok(){ echo "OK   $*"; }; ko(){ echo "ÉCHEC $*"; exit 1; }
 call(){ # méthode chemin jeton corps

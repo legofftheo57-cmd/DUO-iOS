@@ -29,163 +29,179 @@ import DUOCore
     }
 }
 
-/// La journée en ruban 3D : chaque moment bascule en perspective autour de la ligne « maintenant ».
+/// Le calendrier du couple : un mois en grille, puis l'agenda du jour choisi
+/// (horaires de travail, tâches, repas, rendez-vous DUO et calendriers de l'iPhone).
 struct DayV2: View {
     @Environment(AppStore.self) private var store
     @State private var selected = Calendar.current.startOfDay(for: Date())
-    @State private var topID: Int?
-    @State private var picking = false
+    @State private var month = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: Date())) ?? Date()
     @State private var calBridge = CalendarBridge.shared
+    @State private var addEvent = false
+    @State private var editRow: Record?
 
-    struct Moment: Identifiable { let id: Int; let minute: Int; let who: String; let title: String; let tint: Color }
-
-    private var day: Date { selected }
-    private var isToday: Bool { Calendar.current.isDateInToday(selected) }
-    private var dayTitle: String {
-        let c = Calendar.current
-        if c.isDateInToday(selected) { return "Aujourd'hui" }
-        if c.isDateInTomorrow(selected) { return "Demain" }
-        return selected.formatted(.dateTime.weekday(.wide).day().month(.wide))
+    struct Item: Identifiable {
+        let id = UUID(); let minute: Int; let who: String; let title: String; let tint: Color; let symbol: String
+        var row: Record? = nil; var allDay = false
     }
+    private var cal: Calendar { var c = Calendar.current; c.firstWeekday = 2; return c }
 
-    private var moments: [Moment] {
-        var list: [Moment] = []
-        var n = 0
-        func add(_ m: Int, _ who: String, _ t: String, _ c: Color) { list.append(Moment(id: n, minute: m, who: who, title: t, tint: c)); n += 1 }
+    private func items(on day: Date) -> [Item] {
+        var list: [Item] = []
+        let c = cal
         for p in DuoPerson.allCases {
             if let w = DuoSchedule.work(p, on: day) {
-                add(w.start, p.rawValue, w.label, P.person(p))
-                add(w.end, p.rawValue, "Fin · libre vers \(hm(w.end + 30))", P.person(p))
+                list.append(Item(minute: w.start, who: p.rawValue, title: w.label + " · jusqu'à " + hm(w.end), tint: P.person(p), symbol: "briefcase.fill"))
             }
         }
-        let cal = Calendar.current
-        for (_, t) in store.taskRows where t.completed == nil {
-            guard let due = t.due, cal.isDate(due, inSameDayAs: day) else { continue }
+        for (r, t) in store.taskRows where t.completed == nil {
+            guard let due = t.due, c.isDate(due, inSameDayAs: day) else { continue }
+            let m = c.component(.hour, from: due) * 60 + c.component(.minute, from: due)
             let who = store.person(forAssignee: t.assignee)
-            let m = cal.component(.hour, from: due) * 60 + cal.component(.minute, from: due)
-            add(m == 0 ? 18 * 60 : m, who?.rawValue ?? "Ensemble", t.title, P.person(who))
+            list.append(Item(minute: m == 0 ? 18 * 60 : m, who: who?.rawValue ?? "À deux", title: t.title, tint: P.person(who), symbol: "checkmark.circle", row: r))
         }
-        for r in store.records { if case .event(let e) = r.payload, cal.isDate(e.start, inSameDayAs: day) {
-            add(cal.component(.hour, from: e.start) * 60 + cal.component(.minute, from: e.start), "Agenda", e.title, P.sky)
+        for r in store.records { if case .event(let e) = r.payload, c.isDate(e.start, inSameDayAs: day) {
+            list.append(Item(minute: c.component(.hour, from: e.start) * 60 + c.component(.minute, from: e.start), who: "Rendez-vous", title: e.title, tint: P.sky, symbol: e.sport ? "figure.run" : "calendar", row: r))
         } }
+        if let m = store.meal(on: day), let r = store.recipe(m.1.recipeID) {
+            list.append(Item(minute: 19 * 60 + 30, who: DuoSchedule.cook(on: day).map { "\($0.rawValue) cuisine" } ?? "À deux", title: (m.1.cooked ? "Mangé · " : "Dîner · ") + r.title, tint: P.butter, symbol: "fork.knife"))
+        }
         _ = calBridge.revision
         for ev in calBridge.events(on: day) {
-            let m = ev.isAllDay ? 7 * 60 : (Calendar.current.isDate(ev.startDate, inSameDayAs: day) ? Calendar.current.component(.hour, from: ev.startDate) * 60 + Calendar.current.component(.minute, from: ev.startDate) : 0)
+            let m = ev.isAllDay ? 0 : (c.isDate(ev.startDate, inSameDayAs: day) ? c.component(.hour, from: ev.startDate) * 60 + c.component(.minute, from: ev.startDate) : 0)
             let tint: Color = ev.calendar?.cgColor.map { Color(cgColor: $0) } ?? P.sky
-            add(m, ev.calendar?.title ?? "Calendrier", (ev.isAllDay ? "Toute la journée · " : "") + (ev.title ?? "Rendez-vous"), tint)
+            list.append(Item(minute: m, who: ev.calendar?.title ?? "Calendrier", title: ev.title ?? "Rendez-vous", tint: tint, symbol: "calendar", allDay: ev.isAllDay))
         }
-        if let m = store.meal(on: day), let r = store.recipe(m.1.recipeID) {
-            add(19 * 60 + 30, "Ensemble", (m.1.cooked ? "Mangé · " : "Dîner · ") + r.title, P.mint)
-            if let cook = DuoSchedule.cook(on: day) { add(18 * 60 + 45, cook.rawValue, "Préparer le dîner", P.person(cook)) }
+        return list.sorted { ($0.allDay ? -1 : $0.minute) < ($1.allDay ? -1 : $1.minute) }
+    }
+    private func hasThings(_ day: Date) -> (Bool, Bool) {
+        let c = cal
+        let duo = store.records.contains { r in
+            if case .event(let e) = r.payload { return c.isDate(e.start, inSameDayAs: day) }
+            if case .task(let t) = r.payload, t.completed == nil, let d = t.due { return c.isDate(d, inSameDayAs: day) }
+            return false
         }
-        if DuoSchedule.work(.theo, on: day.addingTimeInterval(86400))?.start ?? 9999 < 6 * 60 { add(22 * 60, "Théo", "Dodo · réveil 4 h 40 demain", P.lav) }
-        return list.sorted { $0.minute < $1.minute }.enumerated().map { Moment(id: $0.offset, minute: $0.element.minute, who: $0.element.who, title: $0.element.title, tint: $0.element.tint) }
+        return (duo, calBridge.granted && !calBridge.events(on: day).isEmpty)
+    }
+    private var monthDays: [Date?] {
+        let c = cal
+        guard let range = c.range(of: .day, in: .month, for: month) else { return [] }
+        let first = month
+        let lead = (c.component(.weekday, from: first) - c.firstWeekday + 7) % 7
+        var days: [Date?] = Array(repeating: nil, count: lead)
+        for d in range { days.append(c.date(byAdding: .day, value: d - 1, to: first)) }
+        while days.count % 7 != 0 { days.append(nil) }
+        return days
     }
 
     var body: some View {
-        let items = moments
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(dayTitle + (isToday ? " · fais défiler" : "")).kicker()
+        let list = items(on: selected)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Calendrier").kicker()
+                        Text(month.formatted(.dateTime.month(.wide).year())).font(P.serif(32)).foregroundStyle(P.text)
+                    }
                     Spacer()
-                    Button { picking = true } label: { Label("Calendrier", systemImage: "calendar").font(.system(size: 12, weight: .semibold)) }
-                        .foregroundStyle(P.lav).frame(minHeight: 36)
+                    HStack(spacing: 4) {
+                        Button { shift(-1) } label: { Image(systemName: "chevron.left").frame(width: 40, height: 40) }.accessibilityLabel("Mois précédent")
+                        Button { shift(1) } label: { Image(systemName: "chevron.right").frame(width: 40, height: 40) }.accessibilityLabel("Mois suivant")
+                    }.foregroundStyle(P.text).padding(.top, 6)
                 }
-                Text(items.first(where: { $0.id == (topID ?? 0) }).map { hm($0.minute) } ?? "Rien de prévu").font(P.serif(32)).foregroundStyle(P.text)
-                    .contentTransition(.numericText())
-                HStack(spacing: 12) {
-                    Label("Théo", systemImage: "circle.fill").foregroundStyle(P.lav)
-                    Label("Lilou", systemImage: "circle.fill").foregroundStyle(P.peach)
-                    Label("Ensemble", systemImage: "circle.fill").foregroundStyle(P.mint)
-                    Spacer()
-                }.font(.system(size: 12)).labelStyle(DotLabel())
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(0..<21, id: \.self) { i in
-                            let d = Calendar.current.date(byAdding: .day, value: i, to: Calendar.current.startOfDay(for: Date())) ?? Date()
-                            let on = Calendar.current.isDate(d, inSameDayAs: selected)
-                            Button { withAnimation(.snappy) { selected = d } } label: {
-                                VStack(spacing: 2) {
-                                    Text(d.formatted(.dateTime.weekday(.abbreviated))).font(.system(size: 10, weight: .bold)).opacity(0.7)
-                                    Text("\(Calendar.current.component(.day, from: d))").font(.system(size: 15, weight: .semibold))
-                                }
-                                .foregroundStyle(on ? P.ink : P.text)
-                                .frame(width: 46, height: 52)
-                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? P.lav : Color.white.opacity(0.05)))
-                            }.buttonStyle(.plain)
+
+                VStack(spacing: 6) {
+                    HStack(spacing: 0) {
+                        ForEach(["L", "M", "M", "J", "V", "S", "D"].indices, id: \.self) { i in
+                            Text(["L", "M", "M", "J", "V", "S", "D"][i]).font(.system(size: 11, weight: .bold)).foregroundStyle(P.mut).frame(maxWidth: .infinity)
+                        }
+                    }
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
+                        ForEach(Array(monthDays.enumerated()), id: \.offset) { _, d in
+                            if let d {
+                                let on = cal.isDate(d, inSameDayAs: selected)
+                                let today = cal.isDateInToday(d)
+                                let (duo, ext) = hasThings(d)
+                                Button { withAnimation(.snappy) { selected = d } } label: {
+                                    VStack(spacing: 3) {
+                                        Text("\(cal.component(.day, from: d))").font(.system(size: 15, weight: on || today ? .bold : .regular))
+                                        HStack(spacing: 3) {
+                                            Circle().fill(duo ? (on ? P.ink : P.lav) : .clear).frame(width: 5, height: 5)
+                                            Circle().fill(ext ? (on ? P.ink : P.sky) : .clear).frame(width: 5, height: 5)
+                                        }
+                                    }
+                                    .foregroundStyle(on ? P.ink : (today ? P.lav : P.text))
+                                    .frame(maxWidth: .infinity, minHeight: 46)
+                                    .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(on ? P.lav : (today ? P.lav.opacity(0.12) : .clear)))
+                                }.buttonStyle(.plain)
+                            } else { Color.clear.frame(minHeight: 46) }
                         }
                     }
                 }
+                .padding(12).glass(24)
+
                 if !calBridge.granted {
                     Button {
                         if calBridge.denied { if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) } }
                         else { Task { await calBridge.request() } }
                     } label: {
-                        Label(calBridge.denied ? "Autoriser l'accès au calendrier dans les Réglages" : "Afficher les rendez-vous de mon calendrier iPhone", systemImage: "calendar.badge.plus")
-                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(P.lav).frame(minHeight: 40)
-                    }
+                        Label(calBridge.denied ? "Autoriser l'accès au calendrier dans les Réglages" : "Afficher aussi les rendez-vous de mon iPhone", systemImage: "calendar.badge.plus")
+                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(P.sky).frame(maxWidth: .infinity, minHeight: 44)
+                    }.glass(16)
                 }
-            }.padding(.horizontal, 20).padding(.top, 8)
 
-            GeometryReader { outer in
-                let center = outer.size.height * 0.38
-                ScrollView {
-                    LazyVStack(spacing: 14) {
-                        ForEach(items) { m in
-                            MomentCard(m: m)
-                                .visualEffect { content, proxy in
-                                    let mid = proxy.frame(in: .scrollView).midY
-                                    let a = max(-1, min(1, (mid - center) / 260))
-                                    return content
-                                        .rotation3DEffect(.degrees(-a * 50), axis: (x: 1, y: 0, z: 0), perspective: 0.5)
-                                        .scaleEffect(1 - abs(a) * 0.08)
-                                        .opacity(1 - abs(a) * 0.5)
+                HStack {
+                    Text(dayTitle).font(P.serif(23)).foregroundStyle(P.text)
+                    Spacer()
+                    Button { addEvent = true } label: { Label("Rendez-vous", systemImage: "plus").font(.system(size: 13, weight: .semibold)) }
+                        .foregroundStyle(P.ink).padding(.horizontal, 12).frame(minHeight: 36).background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(P.sky))
+                }.padding(.top, 4)
+
+                if list.isEmpty {
+                    Text("Journée libre. Rien de prévu.").font(.system(size: 14)).foregroundStyle(P.mut).padding(.vertical, 8)
+                }
+                VStack(spacing: 10) {
+                    ForEach(list) { it in
+                        HStack(alignment: .top, spacing: 12) {
+                            Text(it.allDay ? "Journée" : hm(it.minute)).font(.system(size: 13, weight: .semibold)).foregroundStyle(P.mut).frame(width: 58, alignment: .leading).padding(.top, 14)
+                            HStack(spacing: 10) {
+                                Image(systemName: it.symbol).font(.system(size: 14, weight: .semibold)).foregroundStyle(P.ink).frame(width: 30, height: 30).background(Circle().fill(it.tint))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(it.title).font(.system(size: 15, weight: .medium)).foregroundStyle(P.text).fixedSize(horizontal: false, vertical: true)
+                                    Text(it.who).font(.system(size: 11)).foregroundStyle(P.mut)
                                 }
-                                .id(m.id)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(it.tint.opacity(0.12)))
+                            .overlay(alignment: .leading) { RoundedRectangle(cornerRadius: 2).fill(it.tint).frame(width: 3).padding(.vertical, 10) }
+                            .contextMenu {
+                                if let r = it.row {
+                                    Button("Modifier", systemImage: "pencil") { editRow = r }
+                                    Button("Supprimer", systemImage: "trash", role: .destructive) { withAnimation { store.remove(r) } }
+                                }
+                            }
                         }
                     }
-                    .scrollTargetLayout()
-                    .padding(.horizontal, 18).padding(.top, center - 40).padding(.bottom, outer.size.height - center)
                 }
-                .scrollPosition(id: $topID, anchor: .init(x: 0.5, y: 0.38))
-                .scrollIndicators(.hidden)
-                .overlay(alignment: .top) {
-                    Rectangle().fill(LinearGradient(colors: [.clear, P.lav, .clear], startPoint: .leading, endPoint: .trailing))
-                        .frame(height: 1).shadow(color: P.lav, radius: 8).offset(y: center).allowsHitTesting(false)
-                }
+                if list.contains(where: { $0.row != nil }) { Text("Appui long sur un rendez-vous ou une tâche pour le modifier ou le supprimer.").font(.system(size: 11)).foregroundStyle(P.mut) }
             }
+            .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 12)
         }
-        .onChange(of: selected) { _, _ in topID = 0 }
+        .scrollIndicators(.hidden)
+        .refreshable { calBridge.refresh(); await store.sync() }
         .onAppear { calBridge.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in calBridge.refresh() }
-        .sheet(isPresented: $picking) {
-            NavigationStack {
-                DatePicker("Jour", selection: $selected, displayedComponents: [.date])
-                    .datePickerStyle(.graphical).padding()
-                    .navigationTitle("Choisir un jour")
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) { Button("OK") { selected = Calendar.current.startOfDay(for: selected); picking = false } }
-                        ToolbarItem(placement: .cancellationAction) { Button("Aujourd'hui") { selected = Calendar.current.startOfDay(for: Date()); picking = false } }
-                    }
-            }.presentationDetents([.medium, .large])
-        }
+        .sheet(isPresented: $addEvent) { NavigationStack { ItemEditor(kind: "event") } }
+        .sheet(item: $editRow) { r in NavigationStack { ItemEditor(kind: kindOf(r), row: r) } }
     }
+    private var dayTitle: String {
+        if cal.isDateInToday(selected) { return "Aujourd'hui" }
+        if cal.isDateInTomorrow(selected) { return "Demain" }
+        return selected.formatted(.dateTime.weekday(.wide).day().month(.wide))
+    }
+    private func kindOf(_ r: Record) -> String { if case .event = r.payload { return "event" }; return "task" }
+    private func shift(_ n: Int) { withAnimation(.snappy) { month = cal.date(byAdding: .month, value: n, to: month) ?? month } }
     private func hm(_ m: Int) -> String { "\(m / 60) h \(String(format: "%02d", m % 60))" }
-
-    struct MomentCard: View {
-        let m: Moment
-        var body: some View {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack { Text(m.who); Spacer(); Text("\(m.minute / 60) h \(String(format: "%02d", m.minute % 60))") }
-                    .font(.system(size: 11, weight: .bold)).opacity(0.7)
-                Text(m.title).font(P.serif(19)).multilineTextAlignment(.leading)
-            }
-            .foregroundStyle(P.ink).padding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [m.tint, m.tint.opacity(0.75)], startPoint: .topLeading, endPoint: .bottomTrailing)))
-            .accessibilityElement(children: .combine)
-        }
-    }
 }
 
 struct DotLabel: LabelStyle {

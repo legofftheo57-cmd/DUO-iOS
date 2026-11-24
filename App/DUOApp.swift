@@ -43,25 +43,38 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @State private var settings = false
     @State private var assistant = false
+    @State private var account = false
+    @AppStorage("duo.onboard.day") private var onboardDay = ""
     var body: some View {
         @Bindable var store = store
         RootV2(settings: $settings, assistant: $assistant)
         .disabled(store.syncing || !store.ready)
-        .overlay { if store.syncing { ProgressView("Synchronisation…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) } }
+        .overlay { if store.syncing { ProgressView("Un instant…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) } }
         .sheet(isPresented: $settings) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $assistant) { NavigationStack { AssistantView() } }
+        .sheet(isPresented: $account) { NavigationStack { AccountView() } }
         .onOpenURL { url in
             guard !DUORelease.soloOnly else { return }
             store.receiveInviteURL(url)
-            if store.pendingInvitation != nil { settings = true }
+            if store.pendingInvitation != nil { settings = false; account = true }
         }
         .alert("DUO", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("Compris") { store.error = nil } } message: { Text(store.error ?? "") }
         .task {
             // In solo mode the app never authenticates or synchronises in the background.
+            store.migrateLegacyBudget()
+            store.seedDemoIfRequested()
+            let args = ProcessInfo.processInfo.arguments
+            if let i = args.firstIndex(of: "-duo-sheet"), args.count > i + 1 {
+                switch args[i + 1] { case "joe": assistant = true; case "account": account = true; case "settings": settings = true; default: break }
+            }
             guard !DUORelease.soloOnly else { return }
             await store.restoreSessionIfAvailable()
+            store.migrateLegacyBudget()
+            if store.linkState == .linked { await store.sync(showErrors: false) }
+            let today = CoupleSchedule.dayKey(Date())
+            if store.linkState != .linked && onboardDay != today && !DUORelease.uiTesting { onboardDay = today; account = true }
             while !Task.isCancelled {
-                do { try await Task.sleep(for: .seconds(30)) } catch { return }
+                do { try await Task.sleep(for: .seconds(15)) } catch { return }
                 guard !Task.isCancelled else { return }
                 if phase == .active { await store.sync(showErrors: false) }
             }

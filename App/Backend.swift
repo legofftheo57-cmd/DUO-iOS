@@ -10,7 +10,7 @@ struct AuthSession: Codable {
     let base: URL; let key: String
     init() throws {
         guard let raw = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String, let url = URL(string: raw), url.scheme == "https", let host = url.host, host.hasSuffix(".supabase.co"),
-              let key = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_PUBLISHABLE_KEY") as? String, !key.isEmpty, !key.contains("$(") else { throw DuoError.invalid("Synchronisation non configurée. Le mode local reste disponible.") }
+              let key = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_PUBLISHABLE_KEY") as? String, !key.isEmpty, !key.contains("$("), !key.hasPrefix("sb_secret_") else { throw DuoError.invalid("Synchronisation non configurée. Le mode local reste disponible.") }
         base = url; self.key = key
         if let data = try Keychain.read() { session = try JSONDecoder().decode(AuthSession.self, from: data) }
     }

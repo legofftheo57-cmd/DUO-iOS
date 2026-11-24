@@ -11,11 +11,12 @@ struct KitchenV2: View {
                 Text("Cuisine").font(P.serif(32)).foregroundStyle(P.text)
             }
             HStack(spacing: 4) {
-                seg(0, "Repas"); seg(1, "Courses · \(store.shoppingRows.filter { !$0.1.checked }.count)"); seg(2, "Chef")
+                seg(0, "Repas"); seg(1, "Courses · \(store.shoppingRows.filter { !$0.1.checked }.count)"); seg(2, "Frigo"); seg(3, "Chef")
             }.padding(4).background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.06)))
             switch segment {
             case 0: MealsV2()
             case 1: ShoppingV2()
+            case 2: FridgeV2()
             default: ChefV2()
             }
         }
@@ -231,5 +232,96 @@ struct ChefV2: View {
                 NavigationLink { KitchenView().navigationTitle("Stock") } label: { Label("Gérer le frigo et les placards", systemImage: "refrigerator").font(.system(size: 14, weight: .semibold)).foregroundStyle(P.lav).frame(minHeight: 44) }
             }.padding(.bottom, 20)
         }.scrollIndicators(.hidden)
+    }
+}
+
+
+/// Le frigo de DUO : un vrai frigo ouvert, étagère par étagère, chaque produit coloré selon sa fraîcheur.
+struct FridgeV2: View {
+    @Environment(AppStore.self) private var store
+    @State private var adding = false
+    @State private var picked: Record?
+    private let zones: [(String, String, [String])] = [("Frigo", "refrigerator", ["Frigo", "Réfrigérateur"]), ("Congélateur", "snowflake", ["Congélateur"]), ("Placards", "cabinet", ["Placard", "Placards", "Épicerie"])]
+    var body: some View {
+        let foods = store.foodRows
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(zones, id: \.0) { zone in
+                    let items = foods.filter { f in zone.2.contains(f.1.location) }
+                        .sorted { ($0.1.expiry ?? .distantFuture) < ($1.1.expiry ?? .distantFuture) }
+                    let others = zone.0 == "Placards" ? foods.filter { f in !zones.flatMap(\.2).contains(f.1.location) } : []
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label(zone.0, systemImage: zone.1).font(.system(size: 13, weight: .bold)).foregroundStyle(Color(hex: 0x3A4A66))
+                        let all = items + others
+                        if all.isEmpty { Text("Vide").font(.system(size: 13)).foregroundStyle(Color(hex: 0x6B7A93)) }
+                        FlowLayout(spacing: 8) {
+                            ForEach(all, id: \.0.id) { item in
+                                let days = item.1.expiry.map { max(0, Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: $0).day ?? 0) }
+                                let tint = days.map { $0 <= 2 ? Color(hex: 0xF29A7E) : ($0 <= 5 ? Color(hex: 0xF5C76A) : Color(hex: 0x7CC9A4)) } ?? Color(hex: 0xA9B4C8)
+                                Button { picked = item.0 } label: {
+                                    HStack(spacing: 6) {
+                                        Circle().fill(tint).frame(width: 8, height: 8)
+                                        Text(item.1.name).font(.system(size: 14, weight: .medium)).foregroundStyle(Color(hex: 0x1D2433))
+                                        if let d = days { Text(d == 0 ? "auj." : "\(d) j").font(.system(size: 11, weight: .semibold)).foregroundStyle(tint) }
+                                    }
+                                    .padding(.horizontal, 11).frame(minHeight: 38)
+                                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white))
+                                    .shadow(color: Color(hex: 0x2A3A55).opacity(0.12), radius: 4, y: 2)
+                                }.buttonStyle(PressScale())
+                            }
+                        }
+                        Rectangle().fill(LinearGradient(colors: [Color.white.opacity(0.9), Color(hex: 0xB8C6DB)], startPoint: .top, endPoint: .bottom)).frame(height: 6).clipShape(Capsule())
+                    }
+                }
+                Button { adding = true } label: {
+                    Label("Ajouter un produit", systemImage: "plus").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color(hex: 0x1D2433))
+                        .frame(maxWidth: .infinity, minHeight: 46).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(hex: 0xCFE0F5)))
+                }.buttonStyle(PressScale())
+                Text("Touche un produit pour le marquer consommé, le racheter ou le retirer.").font(.system(size: 11)).foregroundStyle(Color(hex: 0x6B7A93))
+            }
+            .padding(18)
+            .background(RoundedRectangle(cornerRadius: 30, style: .continuous).fill(LinearGradient(colors: [Color(hex: 0xF3F7FC), Color(hex: 0xDCE6F3)], startPoint: .top, endPoint: .bottom)))
+            .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(Color.white.opacity(0.6), lineWidth: 2))
+            .overlay(alignment: .trailing) { Capsule().fill(Color(hex: 0xB8C6DB)).frame(width: 6, height: 80).offset(x: 10) }
+            .padding(.bottom, 20).padding(.trailing, 8)
+        }
+        .scrollIndicators(.hidden)
+        .sheet(isPresented: $adding) { NavigationStack { ItemEditor(kind: "food") } }
+        .confirmationDialog(pickedName, isPresented: Binding(get: { picked != nil }, set: { if !$0 { picked = nil } }), titleVisibility: .visible) {
+            if let r = picked {
+                Button("On l'a fini") { withAnimation { store.remove(r) }; store.toast = "Retiré du frigo"; picked = nil }
+                Button("Le remettre dans les courses") {
+                    if case .food(let f) = r.payload { store.put(.shopping(Shopping(ingredient: Ingredient(f.name, 1, .piece)))) }
+                    withAnimation { store.remove(r) }; store.toast = "Ajouté aux courses"; picked = nil
+                }
+                Button("Supprimer", role: .destructive) { withAnimation { store.remove(r) }; picked = nil }
+            }
+            Button("Annuler", role: .cancel) { picked = nil }
+        }
+    }
+    private var pickedName: String { if let r = picked, case .food(let f) = r.payload { return f.name }; return "" }
+}
+
+/// Disposition en lignes qui passent à la ligne (étiquettes du frigo).
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 320
+        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x + s.width > width, x > 0 { x = 0; y += line + spacing; line = 0 }
+            x += s.width + spacing; line = max(line, s.height)
+        }
+        return CGSize(width: width, height: y + line)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, line: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x + s.width > bounds.maxX, x > bounds.minX { x = bounds.minX; y += line + spacing; line = 0 }
+            v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(s))
+            x += s.width + spacing; line = max(line, s.height)
+        }
     }
 }

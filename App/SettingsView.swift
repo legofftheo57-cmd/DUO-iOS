@@ -17,6 +17,18 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
+                NavigationLink { AccountView() } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: store.linkState == .linked ? "checkmark.icloud.fill" : "iphone.radiowaves.left.and.right")
+                            .foregroundStyle(store.linkState == .linked ? Color.green : Color.orange).font(.title3)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Nos deux téléphones").font(.headline)
+                            Text(store.linkState == .linked ? store.lastSyncText : (store.linkState == .noHome ? "Compte ouvert · foyer à créer ou rejoindre" : (store.linkState == .noServer ? "Version sans serveur" : "Pas encore relié : créer mon compte"))).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } header: { Text("Connexion") }
+            Section {
                 Picker("Ce téléphone est celui de", selection: $me) { Text("Théo").tag("Théo"); Text("Lilou").tag("Lilou") }.pickerStyle(.segmented)
             } header: { Text("Qui suis-je ?") } footer: { Text("DUO adapte les horaires, la fatigue et les propositions à la personne qui tient ce téléphone.") }
             if DUORelease.soloOnly {
@@ -26,98 +38,6 @@ struct SettingsView: View {
                     .font(.caption)
                 Text("Avant une réinstallation, préparez une sauvegarde JSON dans Confidentialité, puis enregistrez-la dans Fichiers.")
                     .font(.caption)
-            }
-            }
-            if !DUORelease.soloOnly {
-            Section("Notre espace commun") {
-                if store.backend?.session == nil {
-                    Label("Étape 1 : créez votre compte ici, puis connectez-vous. Étape 2 : créez le foyer et invitez Lilou.", systemImage: "person.2.fill").font(.callout)
-                }
-                Text(store.status)
-                Text("La connexion utilise le service Supabase configuré pour DUO. Seules les données créées dans le foyer connecté seront envoyées. Le mode local reste séparé.").font(.caption)
-                if store.backend?.session == nil {
-                    TextField("Adresse e-mail", text: $email).textContentType(.username).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    SecureField("Mot de passe", text: $password).textContentType(.password)
-                    Button("Se connecter") { Task { await store.connect(email: email, password: password, createAccount: false); password = ""; await store.sync() } }.disabled(email.isEmpty || password.isEmpty)
-                    Button("Créer mon compte") { Task { await store.connect(email: email, password: password, createAccount: true); password = "" } }.disabled(email.isEmpty || password.count < 12)
-                    Button("Mot de passe oublié ?") { recoveryMode = true; Task { await store.requestPasswordReset(email: email) } }.disabled(email.isEmpty)
-                    if recoveryMode {
-                        Text("Saisissez le code contenu dans l’e-mail de récupération. Le modèle d’e-mail Supabase doit inclure le code {{ .Token }}.").font(.caption)
-                        TextField("Code reçu par e-mail", text: $recoveryCode).keyboardType(.numberPad).textContentType(.oneTimeCode)
-                        SecureField("Nouveau mot de passe (12 caractères min.)", text: $recoveryPassword).textContentType(.newPassword)
-                        Button("Confirmer le nouveau mot de passe") {
-                            Task {
-                                await store.completePasswordReset(email: email, code: recoveryCode, password: recoveryPassword)
-                                if store.error == nil { recoveryMode = false; recoveryCode = ""; recoveryPassword = "" }
-                            }
-                        }.disabled(recoveryCode.count < 6 || recoveryPassword.count < 12)
-                    }
-                    Button("Restaurer ma session sécurisée") { Task { await store.connect(email: "", password: "", createAccount: false); await store.sync() } }
-                } else {
-                    if store.backend?.session?.user.id != store.snapshot.userID {
-                        Button("Créer notre foyer") { Task { await store.setupHome(invitation: nil) } }
-                        TextField("Code d’invitation", text: $invitation).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        if store.pendingInvitation != nil {
-                            Label("Invitation reçue : il reste à confirmer.", systemImage: "envelope.badge").font(.caption)
-                        }
-                        Button("Accepter l’invitation et rejoindre le foyer") {
-                            Task { await store.setupHome(invitation: invitation.isEmpty ? store.pendingInvitation : invitation) }
-                        }.disabled(invitation.isEmpty && store.pendingInvitation == nil)
-                    } else {
-                        Button("Inviter Lilou / mon partenaire") {
-                            Task {
-                                token = await store.invite()
-                                inviteURL = token.flatMap { InviteLink.make(token: $0) }
-                            }
-                        }
-                        if let token {
-                            if let inviteURL {
-                                ShareLink(item: inviteURL, subject: Text("Invitation DUO"), message: Text("Rejoins notre foyer DUO avec ton propre compte. Installe DUO puis ouvre ce lien :")) {
-                                    Label("Partager l’invitation", systemImage: "square.and.arrow.up")
-                                }
-                            }
-                            Text("Code de secours : " + token).textSelection(.enabled).font(.caption)
-                            Text("Valable 24 h, une seule utilisation. L’autre personne doit d’abord installer DUO et se connecter à son propre compte. Si le lien ne s’ouvre pas, copier le code ci-dessus dans DUO.").font(.caption)
-                        }
-                        Button("Révoquer les invitations en attente", role: .destructive) {
-                                confirmRevocation = true
-                            }
-                            .disabled(store.syncing)
-                            .confirmationDialog("Invalider le code d’invitation ?", isPresented: $confirmRevocation) {
-                                Button("Révoquer ce code", role: .destructive) {
-                                    Task {
-                                        if await store.revokeInvitation() {
-                                            token = nil
-                                            inviteURL = nil
-                                        }
-                                    }
-                                }
-                                Button("Annuler", role: .cancel) { }
-                            } message: {
-                                Text("Le lien et le code précédemment partagés ne permettront plus de rejoindre le foyer. Vous pourrez créer une nouvelle invitation.")
-                            }
-                        Button("Synchroniser maintenant") { Task { await store.sync() } }.disabled(store.syncing)
-                        if store.syncing { ProgressView("Synchronisation en cours…") }
-                        if !store.snapshot.conflicts.isEmpty {
-                            Label("\(store.snapshot.conflicts.count) conflit(s) à résoudre avant l’envoi", systemImage: "exclamationmark.triangle").font(.caption)
-                        }
-                        if let last = store.lastSuccessfulSync {
-                            Text("Dernière synchronisation réussie : " + last.formatted(date: .abbreviated, time: .shortened)).font(.caption)
-                        }
-                        Text("\(store.snapshot.pending.count) modification(s) à envoyer. Synchronisation toutes les 30 secondes lorsque l’application est ouverte.").font(.caption)
-                    }
-                    Button("Se déconnecter") {
-                        if store.snapshot.pending.isEmpty { Task { await store.disconnect() } }
-                        else { confirmDisconnect = true }
-                    }.disabled(store.syncing)
-                    .confirmationDialog("Des modifications restent sur cet iPhone", isPresented: $confirmDisconnect, titleVisibility: .visible) {
-                        Button("Synchroniser d’abord") { Task { await store.sync() } }
-                        Button("Se déconnecter en conservant la copie locale") { Task { await store.disconnect() } }
-                        Button("Annuler", role: .cancel) { }
-                    } message: {
-                        Text("Les modifications non envoyées restent dans le cache de ce compte sur cet iPhone. Reconnectez-vous au même foyer pour les reprendre. Votre partenaire ne les voit pas encore.")
-                    }
-                }
             }
             }
             Section("Graphite & Ice") {

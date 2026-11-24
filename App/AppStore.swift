@@ -9,6 +9,9 @@ import UserNotifications
     /// Message bref affiché en bas de l'écran (nouvelle interface).
     var toast: String?
     var lastSuccessfulSync: Date?
+    /// Synchronisation de fond en cours : n'empêche jamais d'utiliser l'app.
+    var syncInFlight = false
+    var syncTask: Task<Void, Never>?
     var backend: Backend?; var pendingInvitation: String?; private var disk: DiskStore?
     var records: [Record] { snapshot.records.filter { !$0.deleted } }
     var foods: [Food] { records.compactMap { if case .food(let f) = $0.payload { return f }; return nil } }
@@ -42,8 +45,18 @@ import UserNotifications
     func transact(_ change: (inout Snapshot) throws -> Void) {
         guard ready, !syncing else { error = "Veuillez attendre la fin de l’opération."; return }
         error = nil
-        do { var next = snapshot; try change(&next); guard let disk else { throw DuoError.invalid("Stockage indisponible.") }; try disk.write(next); snapshot = next }
+        do { var next = snapshot; try change(&next); guard let disk else { throw DuoError.invalid("Stockage indisponible.") }; try disk.write(next); snapshot = next; scheduleSync() }
         catch { self.error = error.localizedDescription }
+    }
+    /// Envoie les changements à l'autre téléphone peu après chaque modification (regroupe les gestes rapides).
+    func scheduleSync() {
+        guard !DUORelease.soloOnly, backend?.session != nil else { return }
+        syncTask?.cancel()
+        syncTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            await self?.sync(showErrors: false)
+        }
     }
     func put(_ payload: Content, editing row: Record? = nil, isPrivate: Bool = false) {
         transact { s in
@@ -150,7 +163,10 @@ import UserNotifications
             let home: UUID
             if let invitation { home = try await b.rpc("join_household", ["p_token": invitation.trimmingCharacters(in: .whitespacesAndNewlines)], as: UUID.self) }
             else { home = try await b.rpc("create_household", as: UUID.self) }
-            try selectCache(user: user, home: home); pendingInvitation = nil; InviteVault.clear(); status = "Foyer connecté • données locales conservées séparément"
+            try selectCache(user: user, home: home); pendingInvitation = nil; InviteVault.clear(); status = "Foyer connecté"
+            syncing = false
+            importLocalDataIntoHome()
+            await sync(showErrors: false)
         } catch { self.error = error.localizedDescription }
     }
     func invite() async -> String? {
@@ -175,41 +191,58 @@ import UserNotifications
         }
     }
     func sync(showErrors: Bool = true) async {
-        guard !syncing, let b = backend, b.session?.user.id == snapshot.userID else { return }
-        syncing = true; defer { syncing = false }
+        guard !syncInFlight, !syncing, let b = backend, b.session?.user.id == snapshot.userID else { return }
+        syncInFlight = true; defer { syncInFlight = false }
         do {
             guard let disk else { throw DuoError.invalid("Stockage indisponible : synchronisation suspendue.") }
             try await b.refresh()
-            var next = snapshot
             let incoming = try await b.fetch()
+            // Repartir de l'état le plus récent : un geste fait pendant l'appel réseau n'est jamais perdu.
+            var next = snapshot
             try SyncContract.validateFetched(incoming, for: next)
             for row in incoming {
                 if let i = next.records.firstIndex(where: { $0.id == row.id }), next.pending.contains(row.id), row.revision >= next.records[i].revision, row.payload == next.records[i].payload, row.deleted == next.records[i].deleted {
                     next.records[i] = row; next.pending.removeAll { $0 == row.id }; next.conflicts.removeAll { $0.id == row.id }
                 } else { next.receive(row) }
             }
-            // Save conflicts before any push, so interruption cannot lose either version.
+            // Conflit (les deux ont modifié le même élément) : une suppression l'emporte, sinon la dernière modification de ce téléphone.
+            for c in next.conflicts {
+                if c.remote.deleted {
+                    if let i = next.records.firstIndex(where: { $0.id == c.id }) { next.records[i] = c.remote }
+                    next.pending.removeAll { $0 == c.id }
+                } else if let i = next.records.firstIndex(where: { $0.id == c.id }) {
+                    next.records[i].revision = c.remote.revision
+                }
+            }
+            next.conflicts = []
             try disk.write(next); snapshot = next
-            guard next.conflicts.isEmpty else { status = "Conflit à résoudre"; return }
             let pending = next.records.filter { next.pending.contains($0.id) }
             if !pending.isEmpty {
                 let acknowledged = try await b.push(pending)
                 try SyncContract.validateAcknowledged(acknowledged, pending: pending, for: next)
-                for row in acknowledged { if let i = next.records.firstIndex(where: { $0.id == row.id }) { next.records[i] = row }; next.pending.removeAll { $0 == row.id } }
+                var latest = snapshot
+                for row in acknowledged {
+                    guard let i = latest.records.firstIndex(where: { $0.id == row.id }) else { continue }
+                    let sent = pending.first { $0.id == row.id }
+                    if let sent, latest.records[i].payload == sent.payload, latest.records[i].deleted == sent.deleted {
+                        latest.records[i] = row; latest.pending.removeAll { $0 == row.id }
+                    } else {
+                        latest.records[i].revision = row.revision   // modifié entre-temps : renvoyé au prochain passage
+                    }
+                }
+                try disk.write(latest); snapshot = latest
             }
-            try disk.write(next); snapshot = next
-            let obsoleteReminders = next.records.filter { row in
+            let obsoleteReminders = snapshot.records.filter { row in
                 if row.deleted { return true }; if case .task(let t) = row.payload { return t.completed != nil }; return false
             }.map { $0.id.uuidString }
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: obsoleteReminders)
-            if next.pending.isEmpty {
-                lastSuccessfulSync = Date()
-                status = "Synchronisé à " + (lastSuccessfulSync ?? Date()).formatted(date: .omitted, time: .shortened)
-            } else {
-                status = "Envoi partiel • \(next.pending.count) modification(s) à reprendre"
-            }
+            lastSuccessfulSync = Date()
+            status = snapshot.pending.isEmpty ? "Synchronisé" : "\(snapshot.pending.count) modification(s) en attente d’envoi"
+            if !snapshot.pending.isEmpty { scheduleSync() }
             error = nil
-        } catch { status = "Modifications conservées • synchronisation à reprendre"; if showErrors { self.error = error.localizedDescription } }
+        } catch DuoError.conflict {
+            status = "Mise à jour en cours…"; scheduleSync()
+        } catch { status = "Hors ligne • vos modifications partiront dès que possible"; if showErrors { self.error = error.localizedDescription } }
     }
     func resolve(_ conflict: Conflict, keepLocal: Bool) {
         transact { s in

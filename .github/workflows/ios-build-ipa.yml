@@ -53,6 +53,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
+          CLEAN="$(python3 Scripts/normaliser-supabase.py)"
+          SUPABASE_URL="$(echo "$CLEAN" | sed -n 1p)"; SUPABASE_PUBLISHABLE_KEY="$(echo "$CLEAN" | sed -n 2p)"
           if [ -n "$SUPABASE_URL" ]; then echo "Mode foyer : Supabase configure"; else echo "Mode local : aucun Supabase configure"; fi
           # xcconfig traite // comme un commentaire : on echappe l'URL.
           SB_URL="${SUPABASE_URL/:\/\//:\/\$()\/}"
@@ -89,3 +91,55 @@ jobs:
           path: TestResults/build-device.log
           retention-days: 2
           if-no-files-found: ignore
+  captures:
+    if: ${{ inputs.mode == 'captures' }}
+    name: Captures d'ecran du simulateur
+    runs-on: macos-15-intel
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compiler pour le simulateur
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          CLEAN="$(python3 Scripts/normaliser-supabase.py || true)"
+          SB_URL="$(echo "$CLEAN" | sed -n 1p)"; SB_KEY="$(echo "$CLEAN" | sed -n 2p)"
+          SB_URL="${SB_URL/:\/\//:\/\$()\/}"
+          printf 'SUPABASE_URL = %s\nSUPABASE_PUBLISHABLE_KEY = %s\n' "$SB_URL" "$SB_KEY" > Local.xcconfig
+          xcodebuild -version
+          xcodebuild -project DUO.xcodeproj -scheme DUO -sdk iphonesimulator -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath DD \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -40
+      - name: Lancer chaque ecran et photographier
+        run: |
+          set -euo pipefail
+          APP="$(find DD/Build/Products -maxdepth 2 -name 'DUO.app' -type d | head -1)"
+          DEV="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); c=[x for r,v in d["devices"].items() if "iOS" in r for x in v if x["name"].startswith("iPhone") and "SE" not in x["name"]]; c.sort(key=lambda x: ("Pro" not in x["name"], x["name"])); print(c[0]["udid"])')"
+          xcrun simctl boot "$DEV"; xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl ui "$DEV" appearance dark || true
+          xcrun simctl status_bar "$DEV" override --time 18:42 --batteryLevel 86 --cellularBars 4 || true
+          xcrun simctl install "$DEV" "$APP"
+          BID="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")"
+          mkdir -p captures
+          shot(){ name="$1"; shift; xcrun simctl terminate "$DEV" "$BID" 2>/dev/null || true
+            xcrun simctl launch "$DEV" "$BID" -duo-ui-test demo1 -duo-demo "$@" >/dev/null; sleep 9
+            xcrun simctl io "$DEV" screenshot "captures/$name.png"; echo "capture $name"; }
+          shot 01-accueil -duo-tab 0
+          shot 02-calendrier -duo-tab 1
+          shot 03-maison -duo-tab 2
+          shot 04-repas -duo-tab 3 -duo-kitchen 0
+          shot 05-courses -duo-tab 3 -duo-kitchen 1
+          shot 06-frigo -duo-tab 3 -duo-kitchen 2
+          shot 07-budget -duo-tab 4
+          shot 08-joe -duo-sheet joe
+          shot 09-compte -duo-sheet account
+          shot 10-reglages -duo-sheet settings
+      - uses: actions/upload-artifact@v4
+        with:
+          name: captures
+          path: captures
+          retention-days: 3
