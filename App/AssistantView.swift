@@ -27,7 +27,7 @@ struct AssistantView: View {
                     }.padding(18)
                 }
                 .scrollIndicators(.hidden)
-                .onChange(of: lines.count) { _, _ in withAnimation { proxy.scrollTo(lines.last?.id, anchor: .bottom) } }
+                .onChange(of: lines.count) { _, _ in if let id = lines.last?.id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } } }
             }
             HStack(spacing: 10) {
                 TextField("Écris à Joe…", text: $question, axis: .vertical)

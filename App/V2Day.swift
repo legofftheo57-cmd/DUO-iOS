@@ -116,17 +116,17 @@ struct DayV2: View {
                         }
                     }
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
-                        ForEach(Array(monthDays.enumerated()), id: \.offset) { _, d in
-                            if let d {
+                        ForEach(Array(monthDays.enumerated()), id: \.offset) { pair in
+                            if let d = pair.element {
                                 let on = cal.isDate(d, inSameDayAs: selected)
                                 let today = cal.isDateInToday(d)
-                                let (duo, ext) = hasThings(d)
+                                let things = hasThings(d)
                                 Button { withAnimation(.snappy) { selected = d } } label: {
                                     VStack(spacing: 3) {
                                         Text("\(cal.component(.day, from: d))").font(.system(size: 15, weight: on || today ? .bold : .regular))
                                         HStack(spacing: 3) {
-                                            Circle().fill(duo ? (on ? P.ink : P.lav) : .clear).frame(width: 5, height: 5)
-                                            Circle().fill(ext ? (on ? P.ink : P.sky) : .clear).frame(width: 5, height: 5)
+                                            Circle().fill(things.0 ? (on ? P.ink : P.lav) : .clear).frame(width: 5, height: 5)
+                                            Circle().fill(things.1 ? (on ? P.ink : P.sky) : .clear).frame(width: 5, height: 5)
                                         }
                                     }
                                     .foregroundStyle(on ? P.ink : (today ? P.lav : P.text))
