@@ -6,6 +6,7 @@ struct BudgetV2: View {
     @Environment(AppStore.self) private var store
     @AppStorage("duo.savingsGoal") private var goalEuros = 1000
     @State private var editingGoal = false
+    @State private var showAll = false
     var body: some View {
         let cal = Calendar.current, now = Date()
         let entries = store.snapshot.manualBudget ?? []
@@ -34,7 +35,8 @@ struct BudgetV2: View {
                     tile("Commun ce mois", Brain.euros(common))
                 }
                 VStack(spacing: 0) {
-                    let last = entries.sorted { $0.date > $1.date }.prefix(4)
+                    let sorted = entries.sorted { $0.date > $1.date }
+                    let last = showAll ? Array(sorted) : Array(sorted.prefix(4))
                     if last.isEmpty { Text("Aucune opération ce mois-ci.").font(.system(size: 14)).foregroundStyle(P.mut).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 10) }
                     ForEach(Array(last), id: \.id) { e in
                         HStack(spacing: 12) {
@@ -43,7 +45,14 @@ struct BudgetV2: View {
                             Spacer()
                             Text((e.kind == .income ? "+" : "") + Brain.euros(Double(e.cents) / 100)).font(.system(size: 14, weight: .semibold)).foregroundStyle(e.kind == .income ? P.mint : P.text)
                         }.frame(minHeight: 48)
+                        .contentShape(Rectangle())
+                        .contextMenu { Button("Supprimer", systemImage: "trash", role: .destructive) { removeEntry(e.id) } }
                     }
+                    if sorted.count > 4 {
+                        Button(showAll ? "Afficher moins" : "Voir les \(sorted.count) opérations") { withAnimation { showAll.toggle() } }
+                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(P.mint).frame(minHeight: 40)
+                    }
+                    if !sorted.isEmpty { Text("Appui long sur une opération pour la supprimer.").font(.system(size: 11)).foregroundStyle(P.mut).frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 6) }
                 }.padding(.horizontal, 16).padding(.vertical, 6).glass(20)
 
                 HStack(spacing: 8) {
@@ -63,6 +72,10 @@ struct BudgetV2: View {
             Button("500 €") { goalEuros = 500 }; Button("1 000 €") { goalEuros = 1000 }; Button("2 000 €") { goalEuros = 2000 }; Button("5 000 €") { goalEuros = 5000 }
             Button("Annuler", role: .cancel) {}
         }
+    }
+    private func removeEntry(_ id: UUID) {
+        store.transact { s in var b = s.manualBudget ?? []; b.removeAll { $0.id == id }; s.manualBudget = b }
+        if store.error == nil { store.toast = "Opération supprimée" }
     }
     private func tile(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) { Text(title).font(.system(size: 12)).foregroundStyle(P.mut); Text(value).font(P.serif(21)).foregroundStyle(P.text).minimumScaleFactor(0.7).lineLimit(1) }

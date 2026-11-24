@@ -117,6 +117,7 @@ struct MealsV2: View {
                     small("Il en reste") { store.addLeftover(from: meal.0) }
                     small("Recette") { show(recipe) }
                     if !meal.1.cooked { small("Changer") { store.swapMeal(meal.0) } }
+                    small("Retirer") { store.remove(meal.0); if store.error == nil { store.toast = "Repas retiré · courses mises à jour" } }
                 }
             }.padding(.top, 6)
         }
@@ -165,6 +166,8 @@ struct ShoppingV2: View {
                                     Text("\(item.1.ingredient.quantity.formatted()) \(item.1.ingredient.unit.label)").font(.system(size: 12)).foregroundStyle(P.mut)
                                 }
                                 if item.1.generated { Image(systemName: "sparkles").font(.system(size: 11)).foregroundStyle(P.lav).accessibilityLabel("Ajouté par DUO pour les repas") }
+                                Button { withAnimation { store.remove(item.0) } } label: { Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(P.mut).frame(width: 36, height: 36) }
+                                    .buttonStyle(.plain).accessibilityLabel("Retirer \(item.1.ingredient.name)")
                             }
                         }
                     }.padding(14).glass(20)
@@ -220,6 +223,8 @@ struct ChefV2: View {
                             Capsule().fill(Color.white.opacity(0.08)).frame(width: 80, height: 6)
                                 .overlay(alignment: .leading) { Capsule().fill(color).frame(width: max(8, 80 - CGFloat(min(days, 10)) * 7.2)) }
                             Text(days == 0 ? "auj." : "\(days) j").font(.system(size: 12)).foregroundStyle(color).frame(width: 40, alignment: .trailing)
+                            Button { withAnimation { store.remove(item.0) } } label: { Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(P.mut).frame(width: 36, height: 36) }
+                                .buttonStyle(.plain).accessibilityLabel("Retirer \(item.1.name) du frigo")
                         }.frame(minHeight: 44)
                     }
                 }.padding(.horizontal, 16).padding(.vertical, 6).glass(20)

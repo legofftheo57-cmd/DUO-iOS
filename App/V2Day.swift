@@ -1,15 +1,52 @@
 import SwiftUI
+import UIKit
+import EventKit
 import DUOCore
+
+/// Lit les calendriers de l'iPhone (iCloud, Google, Exchange…) en lecture seule, après accord.
+@MainActor @Observable final class CalendarBridge {
+    static let shared = CalendarBridge()
+    let ek = EKEventStore()
+    private(set) var granted = false
+    private(set) var denied = false
+    private(set) var revision = 0
+    init() { refresh() }
+    func refresh() {
+        let st = EKEventStore.authorizationStatus(for: .event)
+        granted = st == .fullAccess
+        denied = st == .denied || st == .restricted
+        revision += 1
+    }
+    func request() async {
+        _ = try? await ek.requestFullAccessToEvents()
+        refresh()
+    }
+    func events(on day: Date) -> [EKEvent] {
+        guard granted else { return [] }
+        let start = Calendar.current.startOfDay(for: day)
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86400)
+        return ek.events(matching: ek.predicateForEvents(withStart: start, end: end, calendars: nil)).sorted { $0.startDate < $1.startDate }
+    }
+}
 
 /// La journée en ruban 3D : chaque moment bascule en perspective autour de la ligne « maintenant ».
 struct DayV2: View {
     @Environment(AppStore.self) private var store
-    @State private var offset = 0
+    @State private var selected = Calendar.current.startOfDay(for: Date())
     @State private var topID: Int?
+    @State private var picking = false
+    @State private var calBridge = CalendarBridge.shared
 
     struct Moment: Identifiable { let id: Int; let minute: Int; let who: String; let title: String; let tint: Color }
 
-    private var day: Date { Calendar.current.startOfDay(for: Date()).addingTimeInterval(Double(offset) * 86400) }
+    private var day: Date { selected }
+    private var isToday: Bool { Calendar.current.isDateInToday(selected) }
+    private var dayTitle: String {
+        let c = Calendar.current
+        if c.isDateInToday(selected) { return "Aujourd'hui" }
+        if c.isDateInTomorrow(selected) { return "Demain" }
+        return selected.formatted(.dateTime.weekday(.wide).day().month(.wide))
+    }
 
     private var moments: [Moment] {
         var list: [Moment] = []
@@ -31,6 +68,12 @@ struct DayV2: View {
         for r in store.records { if case .event(let e) = r.payload, cal.isDate(e.start, inSameDayAs: day) {
             add(cal.component(.hour, from: e.start) * 60 + cal.component(.minute, from: e.start), "Agenda", e.title, P.sky)
         } }
+        _ = calBridge.revision
+        for ev in calBridge.events(on: day) {
+            let m = ev.isAllDay ? 7 * 60 : (Calendar.current.isDate(ev.startDate, inSameDayAs: day) ? Calendar.current.component(.hour, from: ev.startDate) * 60 + Calendar.current.component(.minute, from: ev.startDate) : 0)
+            let tint: Color = ev.calendar?.cgColor.map { Color(cgColor: $0) } ?? P.sky
+            add(m, ev.calendar?.title ?? "Calendrier", (ev.isAllDay ? "Toute la journée · " : "") + (ev.title ?? "Rendez-vous"), tint)
+        }
         if let m = store.meal(on: day), let r = store.recipe(m.1.recipeID) {
             add(19 * 60 + 30, "Ensemble", (m.1.cooked ? "Mangé · " : "Dîner · ") + r.title, P.mint)
             if let cook = DuoSchedule.cook(on: day) { add(18 * 60 + 45, cook.rawValue, "Préparer le dîner", P.person(cook)) }
@@ -43,7 +86,12 @@ struct DayV2: View {
         let items = moments
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(offset == 0 ? "Votre journée · fais défiler" : "Demain").kicker()
+                HStack {
+                    Text(dayTitle + (isToday ? " · fais défiler" : "")).kicker()
+                    Spacer()
+                    Button { picking = true } label: { Label("Calendrier", systemImage: "calendar").font(.system(size: 12, weight: .semibold)) }
+                        .foregroundStyle(P.lav).frame(minHeight: 36)
+                }
                 Text(items.first(where: { $0.id == (topID ?? 0) }).map { hm($0.minute) } ?? "Rien de prévu").font(P.serif(32)).foregroundStyle(P.text)
                     .contentTransition(.numericText())
                 HStack(spacing: 12) {
@@ -51,8 +99,33 @@ struct DayV2: View {
                     Label("Lilou", systemImage: "circle.fill").foregroundStyle(P.peach)
                     Label("Ensemble", systemImage: "circle.fill").foregroundStyle(P.mint)
                     Spacer()
-                    Picker("Jour", selection: $offset) { Text("Auj.").tag(0); Text("Demain").tag(1) }.pickerStyle(.segmented).frame(width: 140)
                 }.font(.system(size: 12)).labelStyle(DotLabel())
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(0..<21, id: \.self) { i in
+                            let d = Calendar.current.date(byAdding: .day, value: i, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+                            let on = Calendar.current.isDate(d, inSameDayAs: selected)
+                            Button { withAnimation(.snappy) { selected = d } } label: {
+                                VStack(spacing: 2) {
+                                    Text(d.formatted(.dateTime.weekday(.abbreviated))).font(.system(size: 10, weight: .bold)).opacity(0.7)
+                                    Text("\(Calendar.current.component(.day, from: d))").font(.system(size: 15, weight: .semibold))
+                                }
+                                .foregroundStyle(on ? P.ink : P.text)
+                                .frame(width: 46, height: 52)
+                                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? P.lav : Color.white.opacity(0.05)))
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                }
+                if !calBridge.granted {
+                    Button {
+                        if calBridge.denied { if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) } }
+                        else { Task { await calBridge.request() } }
+                    } label: {
+                        Label(calBridge.denied ? "Autoriser l'accès au calendrier dans les Réglages" : "Afficher les rendez-vous de mon calendrier iPhone", systemImage: "calendar.badge.plus")
+                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(P.lav).frame(minHeight: 40)
+                    }
+                }
             }.padding(.horizontal, 20).padding(.top, 8)
 
             GeometryReader { outer in
@@ -83,7 +156,20 @@ struct DayV2: View {
                 }
             }
         }
-        .onChange(of: offset) { _, _ in topID = 0 }
+        .onChange(of: selected) { _, _ in topID = 0 }
+        .onAppear { calBridge.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in calBridge.refresh() }
+        .sheet(isPresented: $picking) {
+            NavigationStack {
+                DatePicker("Jour", selection: $selected, displayedComponents: [.date])
+                    .datePickerStyle(.graphical).padding()
+                    .navigationTitle("Choisir un jour")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("OK") { selected = Calendar.current.startOfDay(for: selected); picking = false } }
+                        ToolbarItem(placement: .cancellationAction) { Button("Aujourd'hui") { selected = Calendar.current.startOfDay(for: Date()); picking = false } }
+                    }
+            }.presentationDetents([.medium, .large])
+        }
     }
     private func hm(_ m: Int) -> String { "\(m / 60) h \(String(format: "%02d", m % 60))" }
 

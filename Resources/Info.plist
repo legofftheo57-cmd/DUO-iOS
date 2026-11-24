@@ -31,6 +31,10 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>DUO affiche les rendez-vous de vos calendriers (iCloud, Google, travail) dans votre journée, pour tout voir au même endroit.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>DUO affiche les rendez-vous de vos calendriers dans votre journée.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

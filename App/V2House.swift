@@ -38,6 +38,7 @@ struct HouseV2: View {
                         ForEach(inRoom, id: \.0.id) { item in TaskLineV2(row: item.0, task: item.1) }
                     }
                 }.scrollIndicators(.hidden)
+                if !inRoom.isEmpty { Text("Appui long sur une tâche pour la supprimer.").font(.system(size: 11)).foregroundStyle(P.mut).padding(.top, 4) }
                 BalanceBar(theo: Brain.balance(store.snapshot.journal ?? [], now: Date())).padding(.top, 8)
             }
             .padding(16).glass().padding(.horizontal, 14).padding(.bottom, 6)

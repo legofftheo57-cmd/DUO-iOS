@@ -139,5 +139,7 @@ struct TaskLineV2: View {
             if task.repeatDays > 0 { Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 11)).foregroundStyle(P.mut).accessibilityLabel("Revient tous les \(task.repeatDays) jours") }
             Avatar(person: who, size: 24)
         }
+        .contentShape(Rectangle())
+        .contextMenu { Button("Supprimer", systemImage: "trash", role: .destructive) { withAnimation { store.remove(row) }; if store.error == nil { store.toast = "Tâche supprimée" } } }
     }
 }

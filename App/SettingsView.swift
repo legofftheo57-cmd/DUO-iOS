@@ -19,18 +19,7 @@ struct SettingsView: View {
             Section {
                 Picker("Ce téléphone est celui de", selection: $me) { Text("Théo").tag("Théo"); Text("Lilou").tag("Lilou") }.pickerStyle(.segmented)
             } header: { Text("Qui suis-je ?") } footer: { Text("DUO adapte les horaires, la fatigue et les propositions à la personne qui tient ce téléphone.") }
-            Section("Graphite & Ice") {
-                Picker("Apparence", selection: $appearance) { Text("Système").tag("system"); Text("Clair").tag("light"); Text("Sombre").tag("dark"); Text("Horaire").tag("schedule") }
-                if appearance == "schedule" {
-                    DatePicker("Début de nuit", selection: timeBinding($nightStart), displayedComponents: [.hourAndMinute])
-                    DatePicker("Fin de nuit", selection: timeBinding($nightEnd), displayedComponents: [.hourAndMinute])
-                    if nightStart == nightEnd { Text("Horaires identiques : mode clair toute la journée.") }
-                }
-            }
-            Section("Alimentation") {
-                TextField("Exclusions séparées par des virgules", text: $exclusions).textInputAutocapitalization(.never)
-                Text("Exemples : lait, gluten, œufs, soja, poisson, poulet. Correspondance sur les noms exacts ; pas de garantie contre les traces ou contaminations croisées.").font(.caption)
-            }
+            if DUORelease.soloOnly {
             Section("Mon iPhone") {
                 Label("Version personnelle — hors ligne", systemImage: "iphone")
                 Text("Mes tâches, mes courses, mes repas et mon planning sont conservés sur cet iPhone. Aucun compte, aucune invitation, aucune synchronisation.")
@@ -38,8 +27,12 @@ struct SettingsView: View {
                 Text("Avant une réinstallation, préparez une sauvegarde JSON dans Confidentialité, puis enregistrez-la dans Fichiers.")
                     .font(.caption)
             }
+            }
             if !DUORelease.soloOnly {
             Section("Notre espace commun") {
+                if store.backend?.session == nil {
+                    Label("Étape 1 : créez votre compte ici, puis connectez-vous. Étape 2 : créez le foyer et invitez Lilou.", systemImage: "person.2.fill").font(.callout)
+                }
                 Text(store.status)
                 Text("La connexion utilise le service Supabase configuré pour DUO. Seules les données créées dans le foyer connecté seront envoyées. Le mode local reste séparé.").font(.caption)
                 if store.backend?.session == nil {
@@ -126,6 +119,18 @@ struct SettingsView: View {
                     }
                 }
             }
+            }
+            Section("Graphite & Ice") {
+                Picker("Apparence", selection: $appearance) { Text("Système").tag("system"); Text("Clair").tag("light"); Text("Sombre").tag("dark"); Text("Horaire").tag("schedule") }
+                if appearance == "schedule" {
+                    DatePicker("Début de nuit", selection: timeBinding($nightStart), displayedComponents: [.hourAndMinute])
+                    DatePicker("Fin de nuit", selection: timeBinding($nightEnd), displayedComponents: [.hourAndMinute])
+                    if nightStart == nightEnd { Text("Horaires identiques : mode clair toute la journée.") }
+                }
+            }
+            Section("Alimentation") {
+                TextField("Exclusions séparées par des virgules", text: $exclusions).textInputAutocapitalization(.never)
+                Text("Exemples : lait, gluten, œufs, soja, poisson, poulet. Correspondance sur les noms exacts ; pas de garantie contre les traces ou contaminations croisées.").font(.caption)
             }
             Section("Confidentialité") {
                 Text(DUORelease.soloOnly
