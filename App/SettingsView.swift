@@ -93,7 +93,7 @@ struct SettingsView: View {
                     Text("DUO Solo est une version de développement installée sur un seul iPhone. Les données restent locales ; la synchronisation sera étudiée ultérieurement.")
                         .font(.caption)
                 } else {
-                    Text("DUO est en version de développement. La suppression en ligne exige la migration SQL 002 et la fonction serveur delete-account déployées. Aucun effacement distant n’est simulé en l’absence de ce service.")
+                    Text("DUO \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · pour Théo et Lilou. Vos données sont partagées entre vos deux téléphones par votre serveur privé.")
                         .font(.caption)
                 }
             }
