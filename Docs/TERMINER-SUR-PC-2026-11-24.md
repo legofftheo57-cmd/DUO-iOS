@@ -3,6 +3,13 @@
 Branche : `work/integration-ipa-20261124` (version 0.5.0 + budget du couple).
 Durée totale : environ 45 min. iPhone de Théo et iPhone de Lilou + câbles USB.
 
+## Mise à jour 24/11 à 8 h 40 — DUO 0.6
+
+- TERMINÉ ET VÉRIFIÉ : nouvelle interface (orbite, journée 3D, appartement, cuisine + chef, orbe d'épargne), cerveau local et IA Apple compilés avec Xcode 26.6 (run 45349180703, `BUILD SUCCEEDED`, tous les tests Swift réussis, IPA 1,3 Mo).
+- PRÉPARÉ MAIS NON TESTÉ : affichage réel sur iPhone, animations, IA Apple sur appareil, anciens tests d'interface (écrits pour l'ancienne interface, non relancés).
+- Le mode foyer s'active tout seul quand Supabase est intégré (étapes 1 à 3) ; sans ça, DUO reste sur un seul iPhone.
+- Après installation, sur CHAQUE téléphone : Réglages DUO → « Qui suis-je ? » → Théo ou Lilou.
+
 ## État de départ (vérifié le 24/11 à 6 h 20)
 
 - TERMINÉ ET VÉRIFIÉ : compilation iPhone de cette branche (run 45332148305, `BUILD SUCCEEDED`, IPA de 884 Ko).
@@ -34,7 +41,7 @@ Sur github.com/legofftheo57-cmd/DUO-iOS → **Settings → Secrets and variables
 
 ## Étape 3 — Fabriquer l'app « foyer » (~5 min)
 
-**Actions → DUO - build .ipa non signe (manuel) → Run workflow** → branche `work/integration-ipa-20261124` → *Run*.
+**Actions → DUO - build .ipa non signe (manuel) → Run workflow** → branche `work/integration-ipa-20261124`, machine `macos-26` → *Run*.
 (Ou écrire à Claude : « lance le build DUO ».)
 Dans le journal, l'étape *Fabriquer* doit afficher « URL du foyer dans l'app : https://xxxx.supabase.co ».
 Télécharger l'artefact **DUO-unsigned-ipa** et le décompresser.
