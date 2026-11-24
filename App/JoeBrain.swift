@@ -22,7 +22,7 @@ enum JoeAction: Equatable {
 }
 struct JoeReply { var text: String; var action: JoeAction?; var usedAI = false }
 
-enum JoeBrain {
+@MainActor enum JoeBrain {
     static let capabilities = """
     Je connais toute l'app DUO et je peux :
     • ajouter une tâche dans la maison (« rappelle-moi de sortir les poubelles demain »)
