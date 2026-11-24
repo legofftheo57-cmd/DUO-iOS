@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   synchro:
+    if: ${{ inputs.mode == 'synchro' || inputs.mode == 'tout' }}
     name: Test synchro deux telephones (vrai serveur)
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -146,20 +147,7 @@ jobs:
           shot 11-chef -duo-tab 3 -duo-kitchen 3
           mkdir -p captures/crash
           find ~/Library/Logs/DiagnosticReports -name 'DUO*' -newer "$APP/Info.plist" -exec cp {} captures/crash/ \; 2>/dev/null || true
-          for f in captures/crash/*; do [ -f "$f" ] || continue; python3 - "$f" <<'PY' > "$f.txt" || true
-import json,sys
-raw=open(sys.argv[1]).read().split('\n',1)
-d=json.loads(raw[1]) if len(raw)>1 else {}
-print(d.get('exception'),'\n',d.get('termination'))
-th=[t for t in d.get('threads',[]) if t.get('triggered')]
-imgs=d.get('usedImages',[])
-for t in th:
-  for f in t.get('frames',[])[:40]:
-    im=imgs[f['imageIndex']]['name'] if f.get('imageIndex') is not None and f['imageIndex']<len(imgs) else '?'
-    print(im, f.get('symbol'), f.get('sourceFile'), f.get('sourceLine'))
-PY
-          done
-          cp captures/*.png /dev/null 2>/dev/null || true
+          for f in captures/crash/*.ips; do [ -f "$f" ] && python3 Scripts/crash-report.py "$f" > "$f.txt" || true; done
       - name: Publier les captures sur une branche (lecture par Claude)
         env:
           GH_TOKEN: ${{ github.token }}
