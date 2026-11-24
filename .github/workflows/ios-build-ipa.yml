@@ -95,6 +95,8 @@ jobs:
     if: ${{ inputs.mode == 'captures' }}
     name: Captures d'ecran du simulateur
     runs-on: macos-15-intel
+    permissions:
+      contents: write
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -139,8 +141,12 @@ jobs:
           shot 08-joe -duo-sheet joe
           shot 09-compte -duo-sheet account
           shot 10-reglages -duo-sheet settings
-      - uses: actions/upload-artifact@v4
-        with:
-          name: captures
-          path: captures
-          retention-days: 3
+      - name: Publier les captures sur une branche (lecture par Claude)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cap && cp captures/*.png /tmp/cap/
+          cd /tmp/cap && git init -q && git checkout -q -b captures
+          git -c user.name=ci -c user.email=ci@local add . && git -c user.name=ci -c user.email=ci@local commit -q -m "captures ${GITHUB_RUN_ID}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" captures:captures
