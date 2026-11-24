@@ -5,6 +5,16 @@
 set -euo pipefail
 : "${SUPABASE_URL:?secret manquant}" ; : "${SUPABASE_PUBLISHABLE_KEY:?secret manquant}"
 U="$SUPABASE_URL"; K="$SUPABASE_PUBLISHABLE_KEY"; RUN="${GITHUB_RUN_ID:-$(date +%s)}"
+# Diagnostic sans révéler les valeurs : forme de l'adresse et de la clé.
+python3 - <<'PY'
+import os, urllib.parse, re
+u=os.environ["SUPABASE_URL"]; k=os.environ["SUPABASE_PUBLISHABLE_KEY"]
+p=urllib.parse.urlparse(u.strip())
+host=re.sub(r"^[a-z0-9]{8,}", "<ref>", p.hostname or "")
+print("Adresse :", "schéma="+p.scheme, "hôte="+host, "chemin="+repr(p.path), "espaces/retours="+str(u!=u.strip()), "longueur="+str(len(u)))
+print("Clé :", "début="+k[:14]+"…", "longueur="+str(len(k)), "espaces/retours="+str(k!=k.strip()))
+PY
+U="$(echo -n "$U" | tr -d '[:space:]')"; U="${U%/}"; K="$(echo -n "$K" | tr -d '[:space:]')"
 PW="DuoTest-$(openssl rand -hex 8)"
 ok(){ echo "OK   $*"; }; ko(){ echo "ÉCHEC $*"; exit 1; }
 call(){ # méthode chemin jeton corps
