@@ -47,7 +47,7 @@ struct BudgetV2: View {
                     HStack {
                         Text("Opérations").font(P.serif(19)).foregroundStyle(P.text)
                         Spacer()
-                        Picker("Filtre", selection: $filter) { Text("Tout").tag(0); Text("Commun").tag(1); Text("Moi").tag(2) }.pickerStyle(.segmented).frame(width: 180)
+                        Picker("Filtre", selection: $filter) { Text("Tout").tag(0); Text("Commun").tag(1); Text("Moi").tag(2) }.pickerStyle(.segmented).frame(width: 210)
                     }.padding(.vertical, 8)
                     let list = showAll ? Array(shown) : Array(shown.prefix(6))
                     if list.isEmpty { Text("Aucune opération. Ajoutez une dépense, un revenu ou de l'épargne.").font(.system(size: 14)).foregroundStyle(P.mut).padding(.vertical, 10) }

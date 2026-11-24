@@ -129,7 +129,7 @@ jobs:
           BID="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")"
           mkdir -p captures
           shot(){ name="$1"; shift; xcrun simctl terminate "$DEV" "$BID" 2>/dev/null || true
-            xcrun simctl launch "$DEV" "$BID" -duo-ui-test demo1 -duo-demo "$@" >/dev/null; sleep 9
+            xcrun simctl launch "$DEV" "$BID" -duo-ui-test demo1 -duo-demo "$@" >/dev/null; sleep 12
             xcrun simctl io "$DEV" screenshot "captures/$name.png"; echo "capture $name"; }
           shot 01-accueil -duo-tab 0
           shot 02-calendrier -duo-tab 1
@@ -141,6 +141,25 @@ jobs:
           shot 08-joe -duo-sheet joe
           shot 09-compte -duo-sheet account
           shot 10-reglages -duo-sheet settings
+          shot 04b-repas -duo-tab 3 -duo-kitchen 0
+          shot 06b-frigo -duo-tab 3 -duo-kitchen 2
+          shot 11-chef -duo-tab 3 -duo-kitchen 3
+          mkdir -p captures/crash
+          find ~/Library/Logs/DiagnosticReports -name 'DUO*' -newer "$APP/Info.plist" -exec cp {} captures/crash/ \; 2>/dev/null || true
+          for f in captures/crash/*; do [ -f "$f" ] || continue; python3 - "$f" <<'PY' > "$f.txt" || true
+import json,sys
+raw=open(sys.argv[1]).read().split('\n',1)
+d=json.loads(raw[1]) if len(raw)>1 else {}
+print(d.get('exception'),'\n',d.get('termination'))
+th=[t for t in d.get('threads',[]) if t.get('triggered')]
+imgs=d.get('usedImages',[])
+for t in th:
+  for f in t.get('frames',[])[:40]:
+    im=imgs[f['imageIndex']]['name'] if f.get('imageIndex') is not None and f['imageIndex']<len(imgs) else '?'
+    print(im, f.get('symbol'), f.get('sourceFile'), f.get('sourceLine'))
+PY
+          done
+          cp captures/*.png /dev/null 2>/dev/null || true
       - name: Publier les captures sur une branche (lecture par Claude)
         env:
           GH_TOKEN: ${{ github.token }}
