@@ -54,12 +54,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          CLEAN="$(python3 Scripts/normaliser-supabase.py)"
-          SUPABASE_URL="$(echo "$CLEAN" | sed -n 1p)"; SUPABASE_PUBLISHABLE_KEY="$(echo "$CLEAN" | sed -n 2p)"
-          if [ -n "$SUPABASE_URL" ]; then echo "Mode foyer : Supabase configure"; else echo "Mode local : aucun Supabase configure"; fi
-          # xcconfig traite // comme un commentaire : on echappe l'URL.
-          SB_URL="${SUPABASE_URL/:\/\//:\/\$()\/}"
-          printf 'SUPABASE_URL = %s\nSUPABASE_PUBLISHABLE_KEY = %s\n' "$SB_URL" "$SUPABASE_PUBLISHABLE_KEY" > Local.xcconfig
+          python3 Scripts/ecrire-local-xcconfig.py
           mkdir -p TestResults
           set -o pipefail
           xcodebuild -project DUO.xcodeproj -scheme DUO \
@@ -73,7 +68,9 @@ jobs:
           APP="$(find TestResults/DerivedData/Build/Products -maxdepth 2 -name '*.app' -type d | head -1)"
           echo "App trouvee : $APP"
           test -n "$APP"
-          echo "URL du foyer dans l'app : $(plutil -extract SUPABASE_URL raw "$APP/Info.plist" 2>/dev/null || echo 'aucune (mode local)')"
+          V="$(plutil -extract SUPABASE_URL raw "$APP/Info.plist" 2>/dev/null || echo 'aucune')"
+          echo "URL du foyer dans l'app : $(echo "$V" | sed -E 's#https://[a-z0-9]+\.supabase\.co#https://<projet>.supabase.co#')"
+          case "$V" in https://*.supabase.co) echo "Adresse valide";; aucune) echo "Mode local";; *) echo "::error::Adresse du foyer mal ecrite dans l'app"; exit 1;; esac
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qry DUO-unsigned.ipa Payload
           ls -lh DUO-unsigned.ipa
@@ -109,10 +106,7 @@ jobs:
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
-          CLEAN="$(python3 Scripts/normaliser-supabase.py || true)"
-          SB_URL="$(echo "$CLEAN" | sed -n 1p)"; SB_KEY="$(echo "$CLEAN" | sed -n 2p)"
-          SB_URL="${SB_URL/:\/\//:\/\$()\/}"
-          printf 'SUPABASE_URL = %s\nSUPABASE_PUBLISHABLE_KEY = %s\n' "$SB_URL" "$SB_KEY" > Local.xcconfig
+          python3 Scripts/ecrire-local-xcconfig.py || true
           xcodebuild -version
           xcodebuild -project DUO.xcodeproj -scheme DUO -sdk iphonesimulator -configuration Debug \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath DD \

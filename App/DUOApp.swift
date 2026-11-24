@@ -6,13 +6,19 @@ import DUOCore
 enum DUORelease {
     /// Mode foyer automatique dès qu'un serveur Supabase est intégré à la compilation.
     static let soloOnly: Bool = {
-        guard let raw = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
-              raw.hasPrefix("https://"), raw.contains(".supabase.co") else { return true }
+        guard let raw = DUORelease.serverURL, raw.hasPrefix("https://"), raw.contains(".supabase.co") else { return true }
         return false
     }()
     // Stable frames let XCUITest wait for the app to become idle.
     // Normal users keep minute-by-minute live date/appearance updates.
     static let uiTesting = ProcessInfo.processInfo.arguments.contains("-duo-ui-test")
+    /// Adresse du serveur nettoyée (barres obliques inversées, espaces, chemin en trop).
+    static let serverURL: String? = {
+        guard var v = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String else { return nil }
+        v = v.replacingOccurrences(of: "\\", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let u = URL(string: v), u.scheme == "https", let host = u.host, host.hasSuffix(".supabase.co") else { return nil }
+        return "https://" + host
+    }()
 }
 
 @main @MainActor struct DUOApp: App {

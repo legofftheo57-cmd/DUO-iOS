@@ -7,7 +7,7 @@ struct KitchenV2: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Repas · courses · chef").kicker()
+                Text("Repas · courses · frigo · chef").kicker()
                 Text("Cuisine").font(P.serif(32)).foregroundStyle(P.text)
             }
             HStack(spacing: 4) {
@@ -110,7 +110,7 @@ struct MealsV2: View {
         @Environment(AppStore.self) private var store
         let meal: (Record, Meal)?; let recipe: Recipe?; let rest: (Record, Food)?; let show: (Recipe) -> Void; let date: Date
         var body: some View {
-            HStack(spacing: 6) {
+            FlowLayout(spacing: 6) {
                 if let rest {
                     small("On les a mangés", dark: true) { store.remove(rest.0); store.log(.mealCooked, rest.1.name); store.toast = "Restes finis · frigo à jour" }
                 } else if let meal, let recipe {
@@ -124,7 +124,7 @@ struct MealsV2: View {
         }
         private func small(_ t: String, dark: Bool = false, _ a: @escaping () -> Void) -> some View {
             Button(action: { withAnimation { a() } }) {
-                Text(t).font(.system(size: 13, weight: .semibold)).foregroundStyle(dark ? P.butter : P.ink)
+                Text(t).font(.system(size: 13, weight: .semibold)).foregroundStyle(dark ? P.butter : P.ink).lineLimit(1).fixedSize()
                     .padding(.horizontal, 12).frame(minHeight: 40)
                     .background(Capsule().fill(dark ? P.ink : P.ink.opacity(0.1)))
             }.buttonStyle(.plain)
