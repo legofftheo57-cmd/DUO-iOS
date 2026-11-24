@@ -8,6 +8,9 @@ on:
       runner:
         description: 'Machine (macos-26 pour l IA Apple, macos-15-intel en secours)'
         default: 'macos-26'
+      mode:
+        description: 'tout = synchro + app ; synchro = seulement le test deux telephones ; captures = app + captures simulateur'
+        default: 'tout'
 
 permissions:
   contents: read
@@ -17,7 +20,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  synchro:
+    name: Test synchro deux telephones (vrai serveur)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Deux telephones simules
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: bash Scripts/test-synchro-deux-telephones.sh
   build-ipa:
+    if: ${{ inputs.mode != 'synchro' }}
     name: Compilation iPhone (non signe) et .ipa
     runs-on: ${{ inputs.runner || 'macos-26' }}
     timeout-minutes: 25
