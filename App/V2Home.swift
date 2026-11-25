@@ -1,4 +1,6 @@
 import SwiftUI
+import SceneKit
+import UIKit
 import DUOCore
 
 /// Nouvelle structure de l'app : 5 espaces, barre flottante, bouton « + ».
@@ -83,14 +85,13 @@ struct HomeV2: View {
         let tonight = store.meal(on: now)
         let rest = store.leftovers.first
         let todayTasks = store.openTasks.filter { $0.1.due.map { Calendar.current.isDateInToday($0) || $0 < now } ?? false }
+        let idea = CoupleIdeasView.ideaOfDay(now)
+        let tonightText = rest.map { "restes de \($0.1.name)" } ?? tonight.flatMap { store.recipe($0.1.recipeID)?.title } ?? "soirée libre"
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                // En-tête
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(now.formatted(.dateTime.weekday(.wide).day().month(.wide))).kicker()
-                        Text("\(greeting(now)) \(store.me.rawValue)").font(P.serif(34)).foregroundStyle(P.text)
-                    }
+            VStack(spacing: 16) {
+                // En-tête discret
+                HStack(spacing: 0) {
+                    Text(now.formatted(.dateTime.weekday(.wide).day().month(.wide))).kicker()
                     Spacer()
                     SyncDot(state: store.linkState, busy: store.syncInFlight) { account = true }
                     Button { assistant = true } label: { Image(systemName: "sparkles").frame(width: 44, height: 44) }.accessibilityLabel("Parler à Joe")
@@ -101,65 +102,96 @@ struct HomeV2: View {
                 if store.linkState == .signedOut || store.linkState == .noHome {
                     Button { account = true } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "iphone.radiowaves.left.and.right").font(.system(size: 20)).foregroundStyle(P.ink)
-                                .frame(width: 42, height: 42).background(Circle().fill(P.peach))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Reliez vos deux téléphones").font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text)
-                                Text(store.linkState == .signedOut ? "2 minutes : un compte chacun, puis le foyer." : "Dernière étape : créer ou rejoindre le foyer.").font(.system(size: 12)).foregroundStyle(P.mut)
-                            }
+                            Image(systemName: "iphone.radiowaves.left.and.right").font(.system(size: 18)).foregroundStyle(P.ink)
+                                .frame(width: 38, height: 38).background(Circle().fill(P.peach))
+                            Text(store.linkState == .signedOut ? "Reliez vos deux téléphones" : "Dernière étape : le foyer").font(.system(size: 14, weight: .semibold)).foregroundStyle(P.text)
                             Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(P.mut)
-                        }.padding(14).glass(20)
+                        }.padding(12).glass(18)
                     }.buttonStyle(.plain)
                 }
 
-                // La maison en 3D
-                ZStack(alignment: .bottom) {
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .fill(RadialGradient(colors: [Color(hex: 0x2B2342), Color(hex: 0x14111D)], center: UnitPoint(x: 0.5, y: 0.35), startRadius: 10, endRadius: 260))
-                    House3DView(counts: roomCounts, selected: nil) { i in room = i; withAnimation(.snappy) { tab = 2 } }
-                        .padding(.bottom, 34)
-                    HStack(spacing: 6) {
-                        ForEach(0..<4, id: \.self) { i in
-                            Button { room = i; withAnimation(.snappy) { tab = 2 } } label: {
-                                HStack(spacing: 5) {
-                                    Circle().fill(HouseV2.rooms[i].1).frame(width: 7, height: 7)
-                                    Text(HouseV2.rooms[i].0).lineLimit(1).minimumScaleFactor(0.8)
-                                    if roomCounts[i] > 0 { Text("\(roomCounts[i])").foregroundStyle(HouseV2.rooms[i].1).bold() }
-                                }
-                                .font(.system(size: 11, weight: .semibold)).foregroundStyle(P.text)
-                                .padding(.horizontal, 9).frame(minHeight: 32)
-                                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08)))
-                            }.buttonStyle(.plain)
-                        }
-                    }.padding(10)
+                // L'objet 3D et son aura
+                ZStack {
+                    Circle().fill(RadialGradient(colors: [AuraPalette.now(now)[0].opacity(0.55), .clear], center: .center, startRadius: 4, endRadius: 150))
+                        .frame(width: 300, height: 300).blur(radius: 20)
+                    AuraHero().frame(height: 240)
                 }
-                .frame(height: 330)
-                .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(Color.white.opacity(0.09)))
-                .shadow(color: P.lav.opacity(0.18), radius: 40, y: 10)
-                .scaleEffect(appeared ? 1 : 0.96).opacity(appeared ? 1 : 0)
+                .frame(height: 240)
+                .scaleEffect(appeared ? 1 : 0.9).opacity(appeared ? 1 : 0)
+                .accessibilityHidden(true)
 
-                // Tableau de bord du jour
-                HStack(spacing: 10) {
-                    StatTile(title: "À faire", value: "\(todayTasks.count)", detail: todayTasks.isEmpty ? "Rien d'urgent" : "aujourd'hui", symbol: "checklist", tint: P.lav) { withAnimation(.snappy) { tab = 2 } }
-                    StatTile(title: "Ce soir", value: rest != nil ? "Restes" : (tonight != nil ? "Prévu" : "Libre"), detail: rest.map { $0.1.name } ?? tonight.flatMap { store.recipe($0.1.recipeID)?.title } ?? "Idées du chef", symbol: "fork.knife", tint: P.butter) { kitchenSegment = 0; withAnimation(.snappy) { tab = 3 } }
-                    StatTile(title: "Budget", value: Brain.euros(store.monthLeft), detail: "reste ce mois", symbol: "drop.fill", tint: P.mint) { withAnimation(.snappy) { tab = 4 } }
+                // L'heure, en grand
+                VStack(spacing: 4) {
+                    TimelineView(.everyMinute) { ctx in
+                        Text(AuraPalette.clock(ctx.date)).font(.system(size: 84, weight: .thin)).monospacedDigit().foregroundStyle(P.text)
+                            .contentTransition(.numericText())
+                    }
+                    Text("\(greeting(now)) \(store.me.rawValue)").font(P.serif(22)).foregroundStyle(P.text.opacity(0.9))
+                    HStack(spacing: 6) {
+                        Button { withAnimation(.snappy) { tab = 2 } } label: { Text(todayTasks.isEmpty ? "rien à faire" : "\(todayTasks.count) à faire") }
+                        Text("·")
+                        Button { kitchenSegment = 0; withAnimation(.snappy) { tab = 3 } } label: { Text("ce soir : \(tonightText)").lineLimit(1) }
+                        Text("·")
+                        Button { withAnimation(.snappy) { tab = 4 } } label: { Text(Brain.euros(store.monthLeft)) }
+                    }
+                    .buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(P.mut).padding(.top, 2)
                 }
-                .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 14)
+                .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 10)
+
+                // Un moment à deux : une idée concrète, tout de suite
+                Button { couple = true } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: idea.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(P.ink)
+                            .frame(width: 46, height: 46).background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(LinearGradient(colors: [P.peach, P.lav], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Un moment à deux · \(idea.minutes) min").kicker()
+                            Text(idea.title).font(P.serif(19)).foregroundStyle(P.text)
+                            Text(idea.detail).font(.system(size: 13)).foregroundStyle(P.mut).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }.padding(16).frame(maxWidth: .infinity, alignment: .leading).glass(24)
+                }.buttonStyle(PressScale())
+
+                // Les prochaines tâches
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text("Les prochaines tâches").kicker()
+                        Spacer()
+                        Button { withAnimation { store.imTired() } } label: {
+                            Text("Je suis crevé").font(.system(size: 12, weight: .semibold)).foregroundStyle(P.text)
+                                .padding(.horizontal, 12).frame(minHeight: 34).overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.white.opacity(0.2)))
+                        }.buttonStyle(.plain)
+                    }
+                    let next = Array(store.openTasks.prefix(3))
+                    if next.isEmpty { Text("Tout est fait. Profitez de la soirée.").font(.system(size: 14)).foregroundStyle(P.mut).padding(.vertical, 10) }
+                    ForEach(next, id: \.0.id) { item in TaskLineV2(row: item.0, task: item.1) }
+                }
+                .padding(16).glass(24)
+
+                // DUO a remarqué : une seule proposition, la plus utile
+                if let p = store.proposals.first {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("DUO a remarqué").kicker()
+                        Text(p.title).font(P.serif(18)).foregroundStyle(P.text).fixedSize(horizontal: false, vertical: true)
+                        Text(p.detail).font(.system(size: 13)).foregroundStyle(P.mut).fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 8) {
+                            PillButton(title: p.accept, fill: P.tints[p.tint % P.tints.count]) { withAnimation { store.accept(p) } }
+                            Button("Pas maintenant") { withAnimation { store.dismiss(p) } }
+                                .font(.system(size: 13, weight: .semibold)).foregroundStyle(P.mut).frame(minHeight: 44)
+                        }
+                    }
+                    .padding(16).frame(maxWidth: .infinity, alignment: .leading).glass(24)
+                }
 
                 if let next = store.nextAppointment(after: now) {
                     Button { withAnimation(.snappy) { tab = 1 } } label: {
-                        HStack(spacing: 12) {
-                            VStack(spacing: 0) {
-                                Text(next.date.formatted(.dateTime.weekday(.abbreviated))).font(.system(size: 10, weight: .bold)).textCase(.uppercase)
-                                Text("\(Calendar.current.component(.day, from: next.date))").font(P.serif(22))
-                            }.foregroundStyle(P.ink).frame(width: 48, height: 52).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(P.sky))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Prochain rendez-vous").kicker()
-                                Text(next.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text).lineLimit(1)
-                                Text(next.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(Locale(identifier: "fr_FR")))).font(.system(size: 12)).foregroundStyle(P.mut)
-                            }
-                            Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(P.mut)
-                        }.padding(12).glass(20)
+                        HStack(spacing: 10) {
+                            Image(systemName: "calendar").foregroundStyle(P.sky)
+                            Text("Prochain rendez-vous : \(next.title)").lineLimit(1)
+                            Spacer()
+                            Text(next.date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(Locale(identifier: "fr_FR")))).foregroundStyle(P.mut)
+                        }
+                        .font(.system(size: 13)).foregroundStyle(P.text).padding(.horizontal, 16).frame(minHeight: 48).glass(18)
                     }.buttonStyle(.plain)
                 }
 
@@ -167,56 +199,127 @@ struct HomeV2: View {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "frying.pan").foregroundStyle(P.butter)
                         Text(chefText).font(.system(size: 14)).foregroundStyle(P.text).fixedSize(horizontal: false, vertical: true)
-                    }.padding(14).glass(20).accessibilityElement(children: .combine)
+                    }.padding(14).frame(maxWidth: .infinity, alignment: .leading).glass(20).accessibilityElement(children: .combine)
                 }
-
-                let props = store.proposals
-                if !props.isEmpty {
-                    Text("DUO a remarqué").kicker().padding(.top, 4)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) { ForEach(props) { ProposalCardV2(p: $0) } }.scrollTargetLayout()
-                    }.scrollTargetBehavior(.viewAligned).scrollClipDisabled()
-                }
-
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text("Les prochaines tâches").font(P.serif(19)).foregroundStyle(P.text)
-                        Spacer()
-                        Button { withAnimation { store.imTired() } } label: {
-                            Text("Je suis crevé").font(.system(size: 12, weight: .semibold)).foregroundStyle(P.text)
-                                .padding(.horizontal, 12).frame(minHeight: 34).overlay(Capsule().strokeBorder(Color.white.opacity(0.2)))
-                        }.buttonStyle(.plain)
-                    }.padding(.bottom, 4)
-                    let next = Array(store.openTasks.prefix(4))
-                    if next.isEmpty { Text("Tout est fait. Profitez de la soirée.").font(.system(size: 14)).foregroundStyle(P.mut).padding(.vertical, 10) }
-                    ForEach(next, id: \.0.id) { item in TaskLineV2(row: item.0, task: item.1) }
-                    BalanceBar(theo: Brain.balance(store.snapshot.journal ?? [], now: now)).padding(.top, 8)
-                }
-                .padding(16).glass()
-
-                Button { couple = true } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: "heart.fill").font(.system(size: 18)).foregroundStyle(P.ink)
-                            .frame(width: 42, height: 42).background(Circle().fill(LinearGradient(colors: [P.rose, P.peach], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Un moment à deux").font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text)
-                            Text("3 idées nouvelles chaque jour, sans pression.").font(.system(size: 12)).foregroundStyle(P.mut)
-                        }
-                        Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(P.mut)
-                    }.padding(14).glass(20)
-                }.buttonStyle(.plain)
             }
             .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
+        .background(AuraBackground().ignoresSafeArea())
         .refreshable { await store.sync() }
         .sheet(isPresented: $couple) { NavigationStack { CoupleIdeasView().navigationTitle("Nous deux") } }
         .sheet(isPresented: $account) { NavigationStack { AccountView() } }
-        .onAppear { withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) { appeared = true } }
+        .onAppear { withAnimation(.spring(response: 0.8, dampingFraction: 0.82)) { appeared = true } }
         .task {
             let key = CoupleSchedule.dayKey(Date())
             guard chefDay != key, ChefAI.isAvailable else { return }
             if let text = await ChefAI.brief(context: store.chefContext) { chefText = text; chefDay = key }
+        }
+    }
+}
+
+/// 1.2 : couleurs de l'aura selon le moment de la journée (aube, journée, soirée, nuit).
+enum AuraPalette {
+    static func now(_ d: Date) -> [Color] {
+        let h = Calendar.current.component(.hour, from: d)
+        switch h {
+        case 5..<11: return [Color(hex: 0xFFB89A), Color(hex: 0xFFE3A8), Color(hex: 0xC8B6FF)]
+        case 11..<17: return [Color(hex: 0x9CC8FF), Color(hex: 0xB8F0D8), Color(hex: 0xC8B6FF)]
+        case 17..<22: return [Color(hex: 0xB79CFF), Color(hex: 0xFF9E80), Color(hex: 0xF7A6C8)]
+        default: return [Color(hex: 0x6E5BFF), Color(hex: 0x3FA0C8), Color(hex: 0xB79CFF)]
+        }
+    }
+    static func clock(_ d: Date) -> String {
+        let f = DateFormatter(); f.locale = Locale(identifier: "fr_FR"); f.dateFormat = "HH:mm"; return f.string(from: d)
+    }
+}
+
+/// 1.2 : le fond de l'accueil. Trois grandes lueurs floues qui dérivent lentement, aux couleurs de l'heure.
+struct AuraBackground: View {
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var drift = false
+    var body: some View {
+        let c = AuraPalette.now(Date())
+        GeometryReader { g in
+            let w = g.size.width
+            ZStack {
+                Color(hex: 0x06050A)
+                Circle().fill(c[0]).frame(width: w * 1.1, height: w * 1.1).blur(radius: 90).opacity(0.55)
+                    .offset(x: drift ? -w * 0.25 : w * 0.05, y: drift ? -w * 0.55 : -w * 0.35)
+                Circle().fill(c[1]).frame(width: w * 0.9, height: w * 0.9).blur(radius: 90).opacity(0.45)
+                    .offset(x: drift ? w * 0.35 : w * 0.1, y: drift ? -w * 0.1 : -w * 0.4)
+                Circle().fill(c[2]).frame(width: w * 0.8, height: w * 0.8).blur(radius: 100).opacity(0.35)
+                    .offset(x: drift ? -w * 0.1 : -w * 0.3, y: drift ? w * 0.5 : w * 0.2)
+                LinearGradient(colors: [.clear, Color(hex: 0x06050A).opacity(0.75), Color(hex: 0x06050A)], startPoint: .center, endPoint: .bottom)
+            }
+            .frame(width: g.size.width, height: g.size.height)
+            .drawingGroup()
+        }
+        .onAppear { guard !reduce else { return }; withAnimation(.easeInOut(duration: 14).repeatForever(autoreverses: true)) { drift = true } }
+    }
+}
+
+/// 1.2 : l'objet 3D de l'accueil. Un anneau de métal poli qui tourne lentement
+/// et reflète des lumières de couleur (lavande, pêche, menthe, ciel).
+struct AuraHero: UIViewRepresentable {
+    func makeUIView(context: Context) -> SCNView {
+        let view = SCNView(frame: .zero)
+        view.backgroundColor = .clear
+        view.isOpaque = false
+        view.antialiasingMode = .multisampling4X
+        view.preferredFramesPerSecond = 60
+        view.rendersContinuously = true
+        view.isUserInteractionEnabled = false
+        let scene = SCNScene()
+        let cam = SCNNode(); cam.camera = SCNCamera(); cam.camera?.fieldOfView = 30; cam.position = SCNVector3(0, 0, 6.4)
+        scene.rootNode.addChildNode(cam)
+
+        let torus = SCNTorus(ringRadius: 1.05, pipeRadius: 0.34)
+        torus.ringSegmentCount = 120; torus.pipeSegmentCount = 48
+        let m = SCNMaterial()
+        m.lightingModel = .physicallyBased
+        m.diffuse.contents = UIColor(white: 0.1, alpha: 1)
+        m.metalness.contents = 1.0
+        m.roughness.contents = 0.14
+        torus.materials = [m]
+        let ring = SCNNode(geometry: torus)
+        ring.eulerAngles = SCNVector3(Float.pi / 2.7, 0, 0.35)
+        let spin = SCNNode(); spin.addChildNode(ring); scene.rootNode.addChildNode(spin)
+
+        scene.lightingEnvironment.contents = Self.environment()
+        scene.lightingEnvironment.intensity = 2.0
+
+        let pivot = SCNNode(); scene.rootNode.addChildNode(pivot)
+        let colors: [UIColor] = [UIColor(P.lav), UIColor(P.peach), UIColor(P.mint), UIColor(P.sky)]
+        for (i, c) in colors.enumerated() {
+            let l = SCNNode(); let light = SCNLight(); light.type = .omni; light.color = c; light.intensity = 1100
+            l.light = light
+            let a = Float(i) * Float.pi / 2
+            l.position = SCNVector3(cos(a) * 3, sin(a) * 1.8, 2.4)
+            pivot.addChildNode(l)
+        }
+        if !UIAccessibility.isReduceMotionEnabled {
+            spin.runAction(.repeatForever(.rotateBy(x: 0, y: CGFloat.pi * 2, z: 0, duration: 22)))
+            pivot.runAction(.repeatForever(.rotateBy(x: 0, y: 0, z: CGFloat.pi * 2, duration: 13)))
+            ring.runAction(.repeatForever(.sequence([.moveBy(x: 0, y: 0.08, z: 0, duration: 3), .moveBy(x: 0, y: -0.08, z: 0, duration: 3)])))
+        }
+        view.scene = scene
+        view.pointOfView = cam
+        return view
+    }
+
+    func updateUIView(_ view: SCNView, context: Context) {}
+
+    /// Ciel de reflets en bandes de couleur : c'est lui qui donne les reflets irisés au métal.
+    static func environment() -> UIImage {
+        let size = CGSize(width: 512, height: 256)
+        return UIGraphicsImageRenderer(size: size).image { ctx in
+            let cols = [UIColor(P.lav), UIColor(P.peach), UIColor(red: 0.063, green: 0.063, blue: 0.094, alpha: 1), UIColor(P.mint), UIColor(P.sky), UIColor(red: 0.063, green: 0.063, blue: 0.094, alpha: 1), UIColor(P.rose), UIColor(P.lav)].map { $0.cgColor }
+            if let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cols as CFArray, locations: nil) {
+                ctx.cgContext.drawLinearGradient(g, start: .zero, end: CGPoint(x: size.width, y: 0), options: [])
+            }
+            UIColor.black.withAlphaComponent(0.35).setFill()
+            ctx.cgContext.fill(CGRect(x: 0, y: size.height * 0.62, width: size.width, height: size.height * 0.38))
         }
     }
 }

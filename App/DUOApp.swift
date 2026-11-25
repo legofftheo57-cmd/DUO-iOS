@@ -460,6 +460,13 @@ struct CoupleIdeasView: View {
 
     private var dayKey: String { CoupleSchedule.dayKey(selectedDate) }
     private var todaysIndices: [Int] { CoupleSchedule.indices(on: selectedDate, count: ideas.count) }
+    /// 1.2 : l'idée du jour, pour l'accueil.
+    static func ideaOfDay(_ date: Date = Date()) -> (title: String, detail: String, minutes: Int, symbol: String) {
+        let list = CoupleIdeasView().ideas
+        let i = CoupleSchedule.indices(on: date, count: list.count).first ?? 0
+        let idea = list[min(max(i, 0), list.count - 1)]
+        return (idea.title, idea.detail, idea.minutes, idea.symbol)
+    }
     private var done: Set<Int> {
         store.snapshot.coupleDay == dayKey ? Set(store.snapshot.coupleCompleted ?? []) : []
     }
