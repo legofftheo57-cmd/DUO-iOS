@@ -124,7 +124,7 @@ jobs:
           BID="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")"
           mkdir -p captures
           shot(){ name="$1"; shift; xcrun simctl terminate "$DEV" "$BID" 2>/dev/null || true
-            xcrun simctl launch "$DEV" "$BID" -duo-ui-test demo1 -duo-demo "$@" >/dev/null; sleep 12
+            xcrun simctl launch "$DEV" "$BID" -duo-ui-test demo1 -duo-demo "$@" >/dev/null; sleep 16
             xcrun simctl io "$DEV" screenshot "captures/$name.png"; echo "capture $name"; }
           shot 01-accueil -duo-tab 0
           shot 02-calendrier -duo-tab 1

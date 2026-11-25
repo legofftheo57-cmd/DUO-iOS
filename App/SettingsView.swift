@@ -40,7 +40,7 @@ struct SettingsView: View {
                     .font(.caption)
             }
             }
-            Section("Graphite & Ice") {
+            Section("Affichage") {
                 Picker("Apparence", selection: $appearance) { Text("Système").tag("system"); Text("Clair").tag("light"); Text("Sombre").tag("dark"); Text("Horaire").tag("schedule") }
                 if appearance == "schedule" {
                     DatePicker("Début de nuit", selection: timeBinding($nightStart), displayedComponents: [.hourAndMinute])

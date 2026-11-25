@@ -73,14 +73,20 @@ struct DayV2: View {
         }
         return list.sorted { ($0.allDay ? -1 : $0.minute) < ($1.allDay ? -1 : $1.minute) }
     }
-    private func hasThings(_ day: Date) -> (Bool, Bool) {
+    /// 1.1 : les points du mois sont calculés une seule fois (avant : 2 recherches par case, soit ~70 par affichage).
+    private func monthDots() -> (Set<Date>, Set<Date>) {
         let c = cal
-        let duo = store.records.contains { r in
-            if case .event(let e) = r.payload { return c.isDate(e.start, inSameDayAs: day) }
-            if case .task(let t) = r.payload, t.completed == nil, let d = t.due { return c.isDate(d, inSameDayAs: day) }
-            return false
+        var duo = Set<Date>()
+        for r in store.records {
+            if case .event(let e) = r.payload { duo.insert(c.startOfDay(for: e.start)) }
+            if case .task(let t) = r.payload, t.completed == nil, let d = t.due { duo.insert(c.startOfDay(for: d)) }
         }
-        return (duo, calBridge.granted && !calBridge.events(on: day).isEmpty)
+        var phone = Set<Date>()
+        if calBridge.granted, let end = c.date(byAdding: .month, value: 1, to: month) {
+            let evs = calBridge.ek.events(matching: calBridge.ek.predicateForEvents(withStart: month, end: end, calendars: nil))
+            for ev in evs { phone.insert(c.startOfDay(for: ev.startDate)) }
+        }
+        return (duo, phone)
     }
     private var monthDays: [Date?] {
         let c = cal
@@ -95,6 +101,7 @@ struct DayV2: View {
 
     var body: some View {
         let list = items(on: selected)
+        let dots = monthDots()
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
@@ -120,7 +127,7 @@ struct DayV2: View {
                             if let d = pair.element {
                                 let on = cal.isDate(d, inSameDayAs: selected)
                                 let today = cal.isDateInToday(d)
-                                let things = hasThings(d)
+                                let things = (dots.0.contains(cal.startOfDay(for: d)), dots.1.contains(cal.startOfDay(for: d)))
                                 Button { withAnimation(.snappy) { selected = d } } label: {
                                     VStack(spacing: 3) {
                                         Text("\(cal.component(.day, from: d))").font(.system(size: 15, weight: on || today ? .bold : .regular))
@@ -185,7 +192,7 @@ struct DayV2: View {
                 }
                 if list.contains(where: { $0.row != nil }) { Text("Appui long sur un rendez-vous ou une tâche pour le modifier ou le supprimer.").font(.system(size: 11)).foregroundStyle(P.mut) }
             }
-            .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 12)
+            .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
         .refreshable { calBridge.refresh(); await store.sync() }

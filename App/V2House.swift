@@ -70,7 +70,7 @@ struct HouseV2: View {
                 }
                 .padding(16).glass()
             }
-            .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 12)
+            .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
         .refreshable { await store.sync() }

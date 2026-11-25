@@ -99,14 +99,13 @@ struct TabBarV2: View {
                 Button { withAnimation(.snappy) { tab = i } } label: {
                     VStack(spacing: 4) {
                         Image(systemName: items[i].1).font(.system(size: 19, weight: .regular)).foregroundStyle(tab == i ? P.lav : P.mut)
-                        Text(items[i].0).font(.system(size: 10.5, weight: .medium)).foregroundStyle(tab == i ? P.text : P.mut)
+                        Text(items[i].0).font(.system(size: 10.5, weight: .medium)).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(tab == i ? P.text : P.mut)
                     }.frame(maxWidth: .infinity, minHeight: 52).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityAddTraits(tab == i ? .isSelected : [])
             }
         }
         .padding(.vertical, 8).padding(.horizontal, 6)
         .glass(26)
-        .padding(.horizontal, 12)
     }
 }
 

@@ -72,7 +72,7 @@ struct BudgetV2: View {
                     }
                     if !list.isEmpty { Text("Appui long sur une opération pour la supprimer. « Commun » est visible par vous deux, « perso » seulement par toi.").font(.system(size: 11)).foregroundStyle(P.mut).padding(.vertical, 8) }
                 }.padding(.horizontal, 16).padding(.vertical, 6).glass(20)
-            }.padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 20)
+            }.padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
         .refreshable { await store.sync() }

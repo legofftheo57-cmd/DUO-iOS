@@ -100,7 +100,7 @@ struct MealsV2: View {
                         }.padding(14).glass(20)
                     }
                 }
-            }.padding(.bottom, 20)
+            }.padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
         .sheet(item: $recipeShown) { r in NavigationStack { RecipeView(recipe: r).navigationTitle(r.title) } }
@@ -161,7 +161,7 @@ struct ShoppingV2: View {
                         ForEach(g.value.sorted { (!$0.1.checked ? 0 : 1) < (!$1.1.checked ? 0 : 1) }, id: \.0.id) { item in
                             HStack(spacing: 6) {
                                 CheckBox(on: item.1.checked, action: { withAnimation { store.toggleShopping(item.0) } }, label: item.1.ingredient.name)
-                                Text(item.1.ingredient.name).font(.system(size: 15)).foregroundStyle(item.1.checked ? P.mut : P.text).strikethrough(item.1.checked)
+                                Text(item.1.ingredient.name.duoCapitalized).font(.system(size: 15)).foregroundStyle(item.1.checked ? P.mut : P.text).strikethrough(item.1.checked)
                                 Spacer()
                                 if item.1.ingredient.unit != .piece || item.1.ingredient.quantity != 1 {
                                     Text("\(item.1.ingredient.quantity.formatted()) \(item.1.ingredient.unit.label)").font(.system(size: 12)).foregroundStyle(P.mut)
@@ -173,7 +173,7 @@ struct ShoppingV2: View {
                         }
                     }.padding(14).glass(20)
                 }
-            }.padding(.bottom, 20)
+            }.padding(.bottom, 28)
         }.scrollIndicators(.hidden)
     }
     private func add() {
@@ -219,7 +219,7 @@ struct ChefV2: View {
                         let days = max(0, cal.dateComponents([.day], from: cal.startOfDay(for: Date()), to: item.1.expiry ?? Date()).day ?? 0)
                         let color = days <= 2 ? P.peach : (days <= 5 ? P.butter : P.mint)
                         HStack(spacing: 12) {
-                            Text(item.1.name).font(.system(size: 15)).foregroundStyle(P.text)
+                            Text(item.1.name.duoCapitalized).font(.system(size: 15)).foregroundStyle(P.text)
                             Spacer()
                             Capsule().fill(Color.white.opacity(0.08)).frame(width: 80, height: 6)
                                 .overlay(alignment: .leading) { Capsule().fill(color).frame(width: max(8, 80 - CGFloat(min(days, 10)) * 7.2)) }
@@ -230,7 +230,7 @@ struct ChefV2: View {
                     }
                 }.padding(.horizontal, 16).padding(.vertical, 6).glass(20)
                 NavigationLink { KitchenView().navigationTitle("Stock") } label: { Label("Gérer le frigo et les placards", systemImage: "refrigerator").font(.system(size: 14, weight: .semibold)).foregroundStyle(P.lav).frame(minHeight: 44) }
-            }.padding(.bottom, 20)
+            }.padding(.bottom, 28)
         }.scrollIndicators(.hidden)
     }
 }
@@ -261,7 +261,7 @@ struct FridgeV2: View {
                                 Button { picked = item.0 } label: {
                                     HStack(spacing: 6) {
                                         Circle().fill(tint).frame(width: 8, height: 8)
-                                        Text(item.1.name).font(.system(size: 14, weight: .medium)).foregroundStyle(Color(hex: 0x1D2433))
+                                        Text(item.1.name.duoCapitalized).font(.system(size: 14, weight: .medium)).foregroundStyle(Color(hex: 0x1D2433))
                                         if let d = days { Text(d == 0 ? "auj." : "\(d) j").font(.system(size: 11, weight: .semibold)).foregroundStyle(tint) }
                                     }
                                     .padding(.horizontal, 11).frame(minHeight: 38)
@@ -283,7 +283,7 @@ struct FridgeV2: View {
             .background(RoundedRectangle(cornerRadius: 30, style: .continuous).fill(LinearGradient(colors: [Color(hex: 0xF3F7FC), Color(hex: 0xDCE6F3)], startPoint: .top, endPoint: .bottom)))
             .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(Color.white.opacity(0.6), lineWidth: 2))
             .overlay(alignment: .trailing) { Capsule().fill(Color(hex: 0xB8C6DB)).frame(width: 6, height: 80).offset(x: 10) }
-            .padding(.bottom, 20).padding(.trailing, 8)
+            .padding(.bottom, 28).padding(.trailing, 8)
         }
         .scrollIndicators(.hidden)
         .sheet(isPresented: $adding) { NavigationStack { ItemEditor(kind: "food") } }
@@ -324,4 +324,10 @@ struct FlowLayout: Layout {
             x += s.width + spacing; line = max(line, s.height)
         }
     }
+}
+
+
+extension String {
+    /// 1.1 : « gnocchis » s'affiche « Gnocchis », sans toucher au texte enregistré.
+    var duoCapitalized: String { prefix(1).uppercased() + dropFirst() }
 }

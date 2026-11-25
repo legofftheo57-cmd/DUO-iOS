@@ -36,16 +36,16 @@ struct RootV2: View {
             }
             .transition(.opacity)
 
-            HStack { Spacer()
+            // 1.1 : le « + » vit à côté de la barre d'onglets (il ne couvre plus le contenu).
+            HStack(spacing: 10) {
+                TabBarV2(tab: $tab)
                 Button { quick = true } label: {
                     Image(systemName: "plus").font(.system(size: 24, weight: .medium)).foregroundStyle(P.ink)
-                        .frame(width: 56, height: 56)
+                        .frame(width: 60, height: 60)
                         .background(Circle().fill(LinearGradient(colors: [Color(hex: 0xE3D8FF), Color(hex: 0xB39CFA)], startPoint: .topLeading, endPoint: .bottomTrailing)))
                         .shadow(color: P.lav.opacity(0.45), radius: 16, y: 8)
                 }.buttonStyle(.plain).accessibilityLabel("Ajouter rapidement")
-            }.padding(.trailing, 20).padding(.bottom, 86)
-
-            TabBarV2(tab: $tab).padding(.bottom, 4)
+            }.padding(.horizontal, 12).padding(.bottom, 4)
 
             if let t = store.toast {
                 ToastView(text: t).padding(.bottom, 150)
@@ -156,7 +156,7 @@ struct HomeV2: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Prochain rendez-vous").kicker()
                                 Text(next.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text).lineLimit(1)
-                                Text(next.date.formatted(date: .omitted, time: .shortened)).font(.system(size: 12)).foregroundStyle(P.mut)
+                                Text(next.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(Locale(identifier: "fr_FR")))).font(.system(size: 12)).foregroundStyle(P.mut)
                             }
                             Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(P.mut)
                         }.padding(12).glass(20)
@@ -206,7 +206,7 @@ struct HomeV2: View {
                     }.padding(14).glass(20)
                 }.buttonStyle(.plain)
             }
-            .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 12)
+            .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
         .refreshable { await store.sync() }
